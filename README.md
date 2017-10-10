@@ -1,2 +1,2 @@
 # machinelearnt
-MIT Machine Learning project by Kevin Montes, Blake Bequette and Francesco Sciortino
+MIT Machine Learning project by Francesco Sciortino, Kevin Montes and Blake Bequette.
