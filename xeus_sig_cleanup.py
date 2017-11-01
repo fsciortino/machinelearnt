@@ -28,6 +28,8 @@ import re
 from VUV_gui_classes import VUVData,interp_max
 import cPickle as pkl
 
+# example addition
+
 class Injection(object):
     """Class to store information on a given injection.
     """
