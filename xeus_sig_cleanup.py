@@ -194,7 +194,8 @@ def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_gu
         a.errorbar(x, y, yerr=err_y, fmt='.', color='b')
         a.plot(grid, m_gp, color='g')
         if method == 'GPR':
-            a.fill_between(grid, m_gp - s_gp, m_gp + s_gp, color='g', alpha=0.5)
+            gptools.univariate_envelope_plot(grid, m_gp, s_gp, ax=a,label='Inferred')
+            #a.fill_between(grid, m_gp - s_gp, m_gp + s_gp, color='g', alpha=0.5)
         a.axvline(grid[i])
     
     if method == 'GPR':
@@ -209,14 +210,17 @@ def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_gu
 m_gp, m_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=10.0, l_guess=0.005, 
     fixed_l=False, debug_plots=True, method='spline',kernel='SE',noiseLevel=1)
 
-m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=10.0, l_guess=0.005, 
-    fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=1)
+# m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=10.0, l_guess=0.005, 
+#     fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=1)
 
-m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=10.0, l_guess=0.005, 
-    fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=1)
+# m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=30.0, l_guess=0.005, 
+#     fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=1)
 
-m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=10.0, l_guess=0.005, 
-    fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=1)
+# m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=30.0, l_guess=0.005, 
+#     fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=2)
+
+m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.5, s_max=10.0, l_guess=0.005, 
+    fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=3)
 
 # m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=10.0, l_guess=0.005, 
 #     fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=2)
