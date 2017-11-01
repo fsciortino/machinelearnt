@@ -1058,7 +1058,7 @@ def interp_max(x, y, err_y=None, s_guess=0.2, s_max=10.0, l_guess=0.005, fixed_l
             # param_bounds=[(0, s_max), (0, 2.0)],
             hyperprior=hp,
             initial_params=[s_guess, l_guess],
-            fixed_params=[False, False]
+            fixed_params=[False, fixed_l]
         )
         gp = gptools.GaussianProcess(k, X=x, y=y, err_y=err_y)
         gp.optimize_hyperparameters(verbose=True, random_starts=100)

@@ -26,6 +26,7 @@ import profiletools
 import profiletools.gui
 import re
 from VUV_gui_classes import VUVData,interp_max
+import cPickle as pkl
 
 class Injection(object):
     """Class to store information on a given injection.
@@ -68,12 +69,7 @@ t=vuv_data.signal.t
 plt.figure()
 plt.errorbar(t,y,y_unc,marker='s',mfc='red',mec='green')
 
-# rel_unc=sig_unc/sig
-interp_max(t, y_clean, err_y=y_unc, s_guess=20, s_max=10.0, l_guess=0.5, fixed_l=False, debug_plots=True, method='GP')
-
-profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=10.0, l_guess=0.005, fixed_l=False, debug_plots=True, method='GPR',kernel='SE')
-
-def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_guess=0.005, fixed_l=False, debug_plots=False, method='GPR'):
+def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_guess=0.005, fixed_l=False, debug_plots=False, method='GPR', noiseLevel=2):
     """Interpolate profiles and uncertainties over a dense grid. Also return the maximum 
     value of the smoothed data.
     
@@ -111,32 +107,50 @@ def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_gu
     method : {'GPR', 'spline'}, optional
         Method to use when interpolating. Default is 'GPR' (Gaussian process
         regression). Can also use a cubic spline.
+    noiseLevel : float, optional
+        Initial guess for a noise multiplier. Default: 2
     """
-    grid = scipy.linspace(max(0, x.min()), min(0.08, x.max()), 1000)
+    # grid = scipy.linspace(max(0, x.min()), min(0.08, x.max()), 1000)
+    grid = scipy.linspace(x.min(), x.max(), 1000)
     if method == 'GPR':
         # hp is the hyperprior. A product of kernels is a kernel, so the joint hyperprior is 
         # just the product of hyperpriors for each of the hyperparameters of the individual 
         # priors. gptools offers convenient functionalities to create joint hyperpriors.
-        hp = (
-            gptools.UniformJointPrior([(0, s_max),]) *
-            gptools.GammaJointPriorAlt([l_guess,], [0.1,])
-        )
+
         # Define the kernel type amongst the implemented options. 
         if kernel=='SE':
+            hp = (
+            gptools.UniformJointPrior([(0, s_max),]) *
+            gptools.GammaJointPriorAlt([l_guess,], [0.1,])
+            )
             k = gptools.SquaredExponentialKernel(
                 # param_bounds=[(0, s_max), (0, 2.0)],
                 hyperprior=hp,
                 initial_params=[s_guess, l_guess],
                 fixed_params=[False, fixed_l]
             )
+            
         elif kernel=='gibbs':
-            ValueError('Implementation not completed yet')
-            k = gptools.GibbsKernel1dTanh( # this has 5 hyperparameters
-                # # param_bounds=[(0, s_max), (0, 2.0)],
-                # hyperprior=hp,
-                # initial_params=[s_guess, l_guess],
-                # fixed_params=[False, fixed_l]
-            )
+            # Set this with 
+            hprior=(
+                # Set a uniform prior for sigmaf
+                gptools.UniformJointPrior([(0,10),])*
+                # Set Gamma distribution('alternative form') for the other 4 priors of the Gibbs 1D Tanh kernel
+                gptools.GammaJointPriorAlt([1.0,0.5,0.0,1.0],[0.3,0.25,0.1,0.05])
+                )
+
+            k = gptools.GibbsKernel1dTanh(
+                #= ====== =======================================================================
+                #0 sigmaf Amplitude of the covariance function
+                #1 l1     Small-X saturation value of the length scale.
+                #2 l2     Large-X saturation value of the length scale.
+                #3 lw     Length scale of the transition between the two length scales.
+                #4 x0     Location of the center of the transition between the two length scales.
+                #= ====== =======================================================================
+                initial_params=self.initial_params,
+                fixed_params=[False]*5,
+                hyperprior=hprior,
+                )
         elif kernel=='matern':
             ValueError('Implementation not completed yet')
             k = gptools.Matern52Kernel( # this has 3 hyperparameters in 1D
@@ -150,10 +164,16 @@ def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_gu
         else:
             ValueError('Only the SE kernel is currently defined! Break here.')
 
-        gp = gptools.GaussianProcess(k, X=x, y=y, err_y=err_y)
+        # Create additional noise to optimize over
+        nk = gptools.DiagonalNoiseKernel(1, n=0, initial_noise=np.mean(err_y)*noiseLevel,
+                        fixed_noise=False, noise_bound=(np.min(err_y), np.max(err_y)*noiseLevel))#, enforce_bounds=True)
+        print "noise_bound= [", np.min(err_y), ",",np.max(err_y)*noiseLevel,"]"
+
+        gp = gptools.GaussianProcess(k, X=x, y=y, err_y=err_y, noise_k=nk)
         gp.optimize_hyperparameters(verbose=True, random_starts=100)
         m_gp, s_gp = gp.predict(grid)
         i = m_gp.argmax()
+
     elif method == 'spline':
         m_gp = scipy.interpolate.UnivariateSpline(
             x, y, w=1.0 / err_y, s=2*len(x)
@@ -171,7 +191,7 @@ def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_gu
         a = f.add_subplot(1, 1, 1)
         a.errorbar(x, y, yerr=err_y, fmt='.', color='b')
         a.plot(grid, m_gp, color='g')
-        if method == 'GP':
+        if method == 'GPR':
             a.fill_between(grid, m_gp - s_gp, m_gp + s_gp, color='g', alpha=0.5)
         a.axvline(grid[i])
     
@@ -180,3 +200,15 @@ def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_gu
     else:
         return (m_gp,m_gp[i])
 
+
+# rel_unc=sig_unc/sig
+#m_gp,m_gp_max = interp_max(t, y_clean, err_y=y_unc, s_guess=20, s_max=10.0, l_guess=0.5, fixed_l=False, debug_plots=True, method='GP')
+
+m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=10.0, l_guess=0.005, 
+    fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=1)
+
+m_gp, m_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=10.0, l_guess=0.005, 
+    fixed_l=False, debug_plots=True, method='spline',kernel='SE',noiseLevel=1)
+
+# m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=10.0, l_guess=0.005, 
+#     fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=2)
