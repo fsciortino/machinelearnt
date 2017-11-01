@@ -214,3 +214,5 @@ m_gp, m_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=10.
 
 # m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=10.0, l_guess=0.005, 
 #     fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=2)
+
+# This is my change
