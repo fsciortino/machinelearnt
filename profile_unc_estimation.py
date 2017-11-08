@@ -36,7 +36,7 @@ from VUV_gui_classes import VUVData,interp_max
 import cPickle as pkl
 import warnings
 
-def profile_fitting(x, y, err_y=None, optimize=True, kernel='SE', num_dim=1, s_guess=0.2, s_max=10.0, l_guess=0.005, fixed_l=False, debug_plots=False, method='GPR', noiseLevel=2):
+def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', num_dim=1, sigma_max=10.0, l_min = 0.005, debug_plots=False, noiseLevel=2):
     """Interpolate profiles and uncertainties over a dense grid. Also return the maximum 
     value of the smoothed data.
     
@@ -65,9 +65,9 @@ def profile_fitting(x, y, err_y=None, optimize=True, kernel='SE', num_dim=1, s_g
         Number of dimensions of the input/output data. Default is 1
     s_guess : float, optional
         Initial guess for the signal variance. Default is 0.2.
-    s_max : float, optional
+    sigma_max : float, optional
         Maximum value for the signal variance. Default is 10.0
-    l_guess : float, optional
+    l_min : float, optional
         Initial guess for the covariance length scale. Default is 0.03.
     fixed_l : bool, optional
         Set to True to hold the covariance length scale fixed during the MAP
@@ -95,9 +95,9 @@ def profile_fitting(x, y, err_y=None, optimize=True, kernel='SE', num_dim=1, s_g
         # Define the kernel type amongst the implemented options. 
         if kernel=='SE':
             hprior = (
-            # gptools.UniformJointPrior([(0, s_max),]) *
-            gptools.GammaJointPriorAlt([2.0,], [5.0,])*
-            gptools.GammaJointPriorAlt([l_guess,], [0.1,])
+            # gptools.UniformJointPrior([(0, sigma_max),]) *
+            gptools.GammaJointPriorAlt([2.0,], [sigma_max,])*
+            gptools.GammaJointPriorAlt([l_min,], [0.1,])
             )
             k = gptools.SquaredExponentialKernel(
                 #= ====== =======================================================================
@@ -105,10 +105,10 @@ def profile_fitting(x, y, err_y=None, optimize=True, kernel='SE', num_dim=1, s_g
                 #1 l1     Small-X saturation value of the length scale.
                 #2 l2     Large-X saturation value of the length scale.
                 #= ====== =======================================================================
-                # param_bounds=[(0, s_max), (0, 2.0)],
+                # param_bounds=[(0, sigma_max), (0, 2.0)],
                 hyperprior=hprior,
-                initial_params=[s_guess, l_guess],
-                fixed_params=[False, fixed_l]
+                initial_params=[10000.0, 400000.0],
+                fixed_params=[False]*2
             )
             
         elif kernel=='gibbs':
