@@ -27,8 +27,7 @@ import profiletools.gui
 import re
 from VUV_gui_classes import VUVData,interp_max
 import cPickle as pkl
-
-# example addition
+import warnings
 
 class Injection(object):
     """Class to store information on a given injection.
@@ -38,40 +37,7 @@ class Injection(object):
         self.t_start = t_start
         self.t_stop = t_stop
 
-shot=1101014019
-LBO_inj=[Injection(1.25, 1.23, 1.4),]
-
-# Get data. If this wasn't saved before, then use the following parameters to load it:
-# included lines: 6
-# lambda_min=2.02, lambda_max=2.04
-# baseline start = 1.11, baseline end = 1.22 
-# ---> then press "apply" and forcely close the GUI
-try:
-	with open('vuv_signals_1101014019.pkl', 'rb') as f:
-            vuv_data = pkl.load(f)
-except IOError:
-	vuv_data = VUVData(shot, LBO_inj, debug_plots=True)
-	with open('vuv_signals_1101014019.pkl', 'wb') as f:
-		pkl.dump(vuv_data, f, protocol=pkl.HIGHEST_PROTOCOL)
-
-# Extract signal in simple form
-y=vuv_data.signal.y
-y_clean=np.asarray([y[i] if y[i]>0 else np.array([0.0,]) for i in range(len(y))])[:,0]
-y_unc=vuv_data.signal.std_y[:,0]
-t=vuv_data.signal.t
-# xeus=r.signals[1]
-# t=xeus.t
-# sig=np.atleast_2d(xeus.y)
-# sig_clean=np.asarray([sig[i] if sig[i]>0 else np.array([0.0,]) for i in range(len(sig))])
-# sig_unc=np.atleast_2d(xeus.std_y)
-
-# bad=[9,10,43]
-# bad=[43]
-# mask=np.asarray([True if i not in bad else False for i in range(len(t))])
-plt.figure()
-plt.errorbar(t,y,y_unc,marker='s',mfc='red',mec='green')
-
-def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_guess=0.005, fixed_l=False, debug_plots=False, method='GPR', noiseLevel=2):
+def profile_fitting(x, y, err_y=None, optimize=True, kernel='SE', num_dim=1, s_guess=0.2, s_max=10.0, l_guess=0.005, fixed_l=False, debug_plots=False, method='GPR', noiseLevel=2):
     """Interpolate profiles and uncertainties over a dense grid. Also return the maximum 
     value of the smoothed data.
     
@@ -90,10 +56,14 @@ def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_gu
         Data to be interpolated.
     err_y : array of float, optional
         Uncertainty in `y`. If absent, the data are interpolated.
+    optimize : bool, optional
+        Specify whether optimization over hyperparameters should occur or not. Default is True.
     kernel : str, optional
         Type of kernel to be used. At this stage, we create the kernel internally, but in the future
         it would be better to do it externally and just give a gptools kernel object as an argument
         More kernels should be added over time. 
+    num_dim : int, optional
+        Number of dimensions of the input/output data. Default is 1
     s_guess : float, optional
         Initial guess for the signal variance. Default is 0.2.
     s_max : float, optional
@@ -113,7 +83,11 @@ def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_gu
         Initial guess for a noise multiplier. Default: 2
     """
     # grid = scipy.linspace(max(0, x.min()), min(0.08, x.max()), 1000)
-    grid = scipy.linspace(x.min(), x.max(), 1000)
+    #grid = scipy.linspace(x.min(), x.max(), 1000)
+    grid = x
+    # Create empty object for results:
+    res= type('', (), {})()
+
     if method == 'GPR':
         # hp is the hyperprior. A product of kernels is a kernel, so the joint hyperprior is 
         # just the product of hyperpriors for each of the hyperparameters of the individual 
@@ -122,7 +96,8 @@ def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_gu
         # Define the kernel type amongst the implemented options. 
         if kernel=='SE':
             hp = (
-            gptools.UniformJointPrior([(0, s_max),]) *
+            # gptools.UniformJointPrior([(0, s_max),]) *
+            gptools.GammaJointPriorAlt([2.0,], [5.0,])*
             gptools.GammaJointPriorAlt([l_guess,], [0.1,])
             )
             k = gptools.SquaredExponentialKernel(
@@ -133,12 +108,13 @@ def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_gu
             )
             
         elif kernel=='gibbs':
+            initial_params=[2.0, 0.5, 0.05, 0.1, 0.5] # for random_starts!= 0, the initial state of the hyperparameters is not actually used.
             # Set this with 
             hprior=(
                 # Set a uniform prior for sigmaf
                 gptools.UniformJointPrior([(0,10),])*
                 # Set Gamma distribution('alternative form') for the other 4 priors of the Gibbs 1D Tanh kernel
-                gptools.GammaJointPriorAlt([1.0,0.5,0.0,1.0],[0.3,0.25,0.1,0.05])
+                gptools.GammaJointPriorAlt([0.3,0.5,0.0,0.0],[0.3,0.25,0.3,0.3])
                 )
 
             k = gptools.GibbsKernel1dTanh(
@@ -149,18 +125,33 @@ def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_gu
                 #3 lw     Length scale of the transition between the two length scales.
                 #4 x0     Location of the center of the transition between the two length scales.
                 #= ====== =======================================================================
-                initial_params=self.initial_params,
+                initial_params=initial_params,
                 fixed_params=[False]*5,
                 hyperprior=hprior,
                 )
         elif kernel=='matern':
             ValueError('Implementation not completed yet')
+            hprior=(
+                gptools.GammaJointPriorAlt([0.3,0.5,0.0],[1.3,1.25,1.3])
+                )
             k = gptools.Matern52Kernel( # this has 3 hyperparameters in 1D
-                # # param_bounds=[(0, s_max), (0, 2.0)],
-                # hyperprior=hp,
-                # initial_params=[s_guess, l_guess],
-                # fixed_params=[False, fixed_l]
+                # param_bounds=[(0, s_max), (0, 2.0)],
+                hyperprior=hp,
+                initial_params=[1.0, 0.5, 1.0],
+                fixed_params=[False]*3
             )
+        elif kernel == 'RQ': # rational quadratic
+            hprior=(
+                gptools.GammaJointPriorAlt([0.3,0.5,0.0],[1.3,1.25,1.3])
+                )
+            gptools.RationalQuadraticKernel(
+                hyperprior=hp,
+                initial_params=[1.0, 0.5, 1.0],
+                fixed_params=[False]*3
+                )
+
+            
+    
         elif isinstance(kernel,gptools.Kernel):
             k=kernel
         else:
@@ -172,9 +163,44 @@ def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_gu
         print "noise_bound= [", np.min(err_y), ",",np.max(err_y)*noiseLevel,"]"
 
         gp = gptools.GaussianProcess(k, X=x, y=y, err_y=err_y, noise_k=nk)
-        gp.optimize_hyperparameters(verbose=True, random_starts=100)
-        m_gp, s_gp = gp.predict(grid)
-        i = m_gp.argmax()
+
+        for i in range(len(y)):
+            if y[i]==0:
+                gp.add_data(x[i], 0, n=0, err_y=0.0)
+                gp.add_data(x[i], 0, n=0, err_y=0.0)
+        
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="invalid value encountered in subtract")
+            if optimize: 
+                gp.optimize_hyperparameters(verbose=True, random_starts=200)
+            else:
+                print 'Optimization is turned off. Using initial guesses for hyperparameters!'
+
+        m_gp, s_gp = gp.predict(grid,noise=True)
+        res.free_params = gp.free_params[:]
+        res.free_param_names = gp.free_param_names[:]
+        res.free_param_bounds = gp.free_param_bounds[:]
+    
+        #i = m_gp.argmax()
+
+        # Check percentage of points within 3 sd:
+        points_in_1sd=0.0; points_in_2sd=0.0; points_in_3sd=0.0
+        for i in range(len(y)):
+            # Find value of grid that is the closest to x[i]:
+            gidx = np.argmin(abs(grid - x[i]))
+            if abs(m_gp[gidx]-y[i]) < s_gp[gidx]:
+                points_in_1sd += 1.0
+            if abs(m_gp[gidx]- y[i]) > s_gp[gidx] and abs(m_gp[gidx]- y[i]) < 2*s_gp[gidx]:
+                points_in_2sd += 1.0
+            if abs(m_gp[gidx]- y[i]) > 2*s_gp[gidx] and abs(m_gp[gidx]- y[i]) < 3*s_gp[gidx]:
+                points_in_3sd += 1.0
+    
+        frac_within_1sd = float(points_in_1sd)/ len(y)
+        frac_within_2sd = float(points_in_2sd)/ len(y)
+        frac_within_3sd = float(points_in_3sd)/ len(y)
+        print 'Fraction of points within 1 sd: {}'.format(frac_within_1sd)
+        print 'Fraction of points within 2 sd: {}'.format(frac_within_2sd)
+        print 'Fraction of points within 3 sd: {}'.format(frac_within_3sd)
 
     elif method == 'spline':
         m_gp = scipy.interpolate.UnivariateSpline(
@@ -184,7 +210,7 @@ def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_gu
             print(x)
             print(y)
             print(err_y)
-        i = m_gp.argmax()
+        #i = m_gp.argmax()
     else:
         raise ValueError("Undefined method: %s" % (method,))
     
@@ -196,33 +222,112 @@ def profile_fitting(x, y, err_y=None, kernel='SE', s_guess=0.2, s_max=10.0, l_gu
         if method == 'GPR':
             gptools.univariate_envelope_plot(grid, m_gp, s_gp, ax=a,label='Inferred')
             #a.fill_between(grid, m_gp - s_gp, m_gp + s_gp, color='g', alpha=0.5)
-        a.axvline(grid[i])
-    
+        plt.plot(grid[m_gp.argmax()],m_gp.max(),'r*')
+        #a.axvline(grid[i])
+
     if method == 'GPR':
-        return (m_gp, s_gp, m_gp[i], s_gp[i])
+        res.m_gp=m_gp
+        res.s_gp=s_gp 
+        res.frac_within_1sd=frac_within_1sd
+        res.frac_within_2sd=frac_within_2sd
+        res.frac_within_3sd=frac_within_3sd
+
+        # res = results(m_gp=m_gp, s_gp=s_gp, frac_within_1sd=frac_within_1sd, frac_within_2sd=frac_within_2sd, frac_within_3sd=frac_within_3sd)
+        # return (m_gp, s_gp, frac_within_1sd, frac_within_2sd, frac_within_3sd)
     else:
-        return (m_gp,m_gp[i])
+        res.m_gp=m_gp
+        #return m_gp
+    return res
+
+# Select shot for which 
+shot_train=1101014019
+shot_val = 1101014029
+
+LBO_inj_train=[Injection(1.25, 1.23, 1.4),] #1101019019
+LBO_inj_val=[Injection(1.0, 0.99, 1.08),]  #1101014029
+
+# ========================================
+# Get data. If this wasn't saved before, then use the following parameters to load it:
+# included lines: 6
+# lambda_min=2.02, lambda_max=2.04
+# baseline start = 1.11, baseline end = 1.22 
+# ---> then press "apply" and forcely close the GUI
+
+# Training data:
+try:
+    with open('vuv_signals_%d.pkl'%shot_train, 'rb') as f:
+            vuv_data_train = pkl.load(f)
+except IOError:
+    vuv_data_train = VUVData(shot_train, LBO_inj_train, debug_plots=True)
+    with open('vuv_signals_%d.pkl'%shot_train, 'wb') as f:
+        pkl.dump(vuv_data_train, f, protocol=pkl.HIGHEST_PROTOCOL)
+
+# Validation data:
+try:
+    with open('vuv_signals_%d.pkl'%shot_val, 'rb') as f:
+            vuv_data_val = pkl.load(f)
+except IOError:
+    vuv_data_val = VUVData(shot_val, LBO_inj_val, debug_plots=True)
+    with open('vuv_signals_%d.pkl'%shot_val, 'wb') as f:
+        pkl.dump(vuv_data_val, f, protocol=pkl.HIGHEST_PROTOCOL)
+# ==========================================
+
+# Extract signal in simple form
+y_train=vuv_data_train.signal.y
+y_clean_train=np.asarray([y_train[i] if y_train[i]>0 else np.array([0.0,]) for i in range(len(y_train))])[:,0]
+y_unc_train=vuv_data_train.signal.std_y[:,0]
+t_train=vuv_data_train.signal.t
 
 
-# rel_unc=sig_unc/sig
-#m_gp,m_gp_max = interp_max(t, y_clean, err_y=y_unc, s_guess=20, s_max=10.0, l_guess=0.5, fixed_l=False, debug_plots=True, method='GP')
+# ==================================================================
+# 
+#                             TRAINING
+#
+# ===================================================================
+report_figs = True
+if report_figs:
+    plt.figure()
+    plt.errorbar(t_train,y_clean_train,y_unc_train,marker='s',mfc='red',mec='green')
 
-m_gp, m_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=10.0, l_guess=0.005, 
-    fixed_l=False, debug_plots=True, method='spline',kernel='SE',noiseLevel=1)
+    res = profile_fitting(t_train, y_clean_train, err_y=y_unc_train, s_guess=0.2, s_max=10.0, l_guess=0.05, 
+        fixed_l=False, debug_plots=True, method='spline',kernel='SE',noiseLevel=1)
 
-# m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=10.0, l_guess=0.005, 
-#     fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=1)
+    res = profile_fitting(t_train, y_clean_train, err_y=y_unc_train, s_guess=0.1, s_max=10.0, l_guess=0.05, 
+        fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=2)
 
-# m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=30.0, l_guess=0.005, 
-#     fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=1)
+    # Try Gibbs 1d tanh kernel:
+    res = profile_fitting(t_train, y_clean_train, err_y=y_unc_train, debug_plots=True, method='GPR',kernel='gibbs',noiseLevel=2)
 
-# m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=30.0, l_guess=0.005, 
-#     fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=2)
+#==================================================================
+#
+#                            VALIDATION
+#
+#===================================================================
+range_1sd = 0.6827
+range_2sd = 0.9545 - range_1sd
+range_3sd = 0.9973 - range_2sd
 
-m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.5, s_max=10.0, l_guess=0.005, 
-    fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=3)
+nL = np.linspace(1.0, 3.0, 3)
+hyperparams = np.zeros((len(nL),3))
+for j in range(len(nL)):
+    noiseLevel = nL[j]
+    res_train = profile_fitting(t_train, y_clean_train, err_y=y_unc_train, optimize=True, s_guess=0.1, s_max=10.0, l_guess=0.05, 
+        fixed_l=False, debug_plots=True, method='GPR',kernel='SE', noiseLevel=noiseLevel)
 
-# m_gp, s_gp, m_gp_max, s_gp_max = profile_fitting(t, y_clean, err_y=y_unc, s_guess=0.2, s_max=10.0, l_guess=0.005, 
-#     fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=2)
+    hyperparams[j,:] = res_train.free_params[:]
+    sigma_f_opt = res_train.free_params[:][0]
+    l_1_opt = res_train.free_params[:][1]
+    sigma_n_opt = res_train.free_params[:][2]
+    noiseLevel_opt = sigma_n_opt / np.mean(y_unc_train)
 
-# This is my change
+    # Find validation set error
+    res_val = profile_fitting(t_train, y_clean_train, err_y=y_unc_train, optimize=False, s_guess=sigma_f_opt, s_max=10.0, l_guess=l_1_opt, 
+        fixed_l=True, debug_plots=True, method='GPR', kernel='SE', noiseLevel=noiseLevel_opt)
+
+    frac_within_1sd = res_val.frac_within_1sd
+    frac_within_2sd = res_val.frac_within_2sd
+    frac_within_3sd = res_val.frac_within_3sd
+
+    loss = 0.5 * ((range_1sd - frac_within_1sd)**2 + (range_2sd - frac_within_2sd)**2 + (range_3sd - frac_within_3sd)**2)
+
+    print loss
