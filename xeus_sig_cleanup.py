@@ -1,7 +1,7 @@
 from __future__ import division
 import sys
 sys.path.append('/home/sciortino/ML')
-import profile_unc_estimation
+import profile_unc_estimation as  prof_fit
 import numpy as np
 import collections
 import profiletools
@@ -87,20 +87,28 @@ if report_figs:
     plt.figure()
     plt.errorbar(t_train,y_clean_train,y_unc_train,marker='s',mfc='red',mec='green')
 
-    res = profile_fitting(t_train, y_clean_train, err_y=y_unc_train, s_guess=0.2, s_max=10.0, l_guess=0.05, 
-        fixed_l=False, debug_plots=True, method='spline',kernel='SE',noiseLevel=1)
+    res = prof_fit.profile_fitting(t_train, y_clean_train, err_y=y_unc_train, optimize=True, sigma_max=10.0, 
+        debug_plots=True, method='spline',kernel='SE',noiseLevel=1)
 
-    res = profile_fitting(t_train, y_clean_train, err_y=y_unc_train, s_guess=0.1, s_max=10.0, l_guess=0.05, 
-        fixed_l=False, debug_plots=True, method='GPR',kernel='SE',noiseLevel=2)
-    
+    # SE kernel test:
+    SE_params={'sigma_mean': 2.0, 'l_mean': 0.1, 'sigma_sd': 10.0, 'l_sd':0.1}
+    res = prof_fit.profile_fitting(t_train, y_clean_train, err_y=y_unc_train, method='GPR',kernel='SE',noiseLevel=2, **SE_params)
+    logposterior_SE = 
+
+
     # Try gibbs kernel:
-    res = profile_fitting(t_train, y_clean_train, err_y=y_unc_train, debug_plots=True, method='GPR',kernel='gibbs',noiseLevel=2)
+    gibbs_params={'sigma_min':0.0,'sigma_max':2.0,'l1_mean':0.005,'l2_mean':0.1,'lw_mean':0.01,'x0_mean':0.0,
+                    'l1_sd':0.05,'l2_sd':0.05,'lw_sd':0.02,'x0_sd':0.002}
+    res = prof_fit.profile_fitting(t_train, y_clean_train, err_y=y_unc_train, method='GPR',kernel='gibbs',noiseLevel=2, **gibbs_params)
     
     # Try matern52 kernel:
-    res = profile_fitting(t_train, y_clean_train, err_y=y_unc_train, debug_plots=True, method='GPR',kernel='matern52',noiseLevel=2)
+    matern52_params={'sigma_mean': 2.0, 'l_mean': 0.05, 'sigma_sd': 10.0, 'l_sd':10.0}
+    res = prof_fit.profile_fitting(t_train, y_clean_train, err_y=y_unc_train, method='GPR',kernel='matern52',noiseLevel=2, **matern52_params)
     
     # Try RQ kernel:
-    res = profile_fitting(t_train, y_clean_train, err_y=y_unc_train, debug_plots=True, method='GPR',kernel='RQ',noiseLevel=2)
+    RQ_params={'sigma_mean': 2.0, 'l_mean': 0.005, 'sigma_sd': 10.0, 'l_sd':0.1}
+    res = prof_fit.profile_fitting(t_train, y_clean_train, err_y=y_unc_train, method='GPR',kernel='RQ',noiseLevel=2, **RQ_params)
+
 
 #==================================================================
 #
@@ -115,8 +123,8 @@ nL = np.linspace(1.0, 3.0, 3)
 hyperparams = np.zeros((len(nL),3))
 for j in range(len(nL)):
     noiseLevel = nL[j]
-    res_train = profile_fitting(t_train, y_clean_train, err_y=y_unc_train, optimize=True, s_guess=0.1, s_max=10.0, l_guess=0.05, 
-        fixed_l=False, debug_plots=True, method='GPR',kernel='SE', noiseLevel=noiseLevel)
+    res_train = prof_fit.profile_fitting(t_train, y_clean_train, err_y=y_unc_train, optimize=True, sigma_max=10.0, 
+        method='GPR',kernel='SE', noiseLevel=noiseLevel)
 
     hyperparams[j,:] = res_train.free_params[:]
     sigma_f_opt = res_train.free_params[:][0]
@@ -125,8 +133,8 @@ for j in range(len(nL)):
     noiseLevel_opt = sigma_n_opt / np.mean(y_unc_train)
 
     # Find validation set error
-    res_val = profile_fitting(t_train, y_clean_train, err_y=y_unc_train, optimize=False, s_guess=sigma_f_opt, s_max=10.0, l_guess=l_1_opt, 
-        fixed_l=True, debug_plots=True, method='GPR', kernel='SE', noiseLevel=noiseLevel_opt)
+    res_val = prof_fit.profile_fitting(t_train, y_clean_train, err_y=y_unc_train, optimize=False, sigma_max=10.0, 
+        method='GPR', kernel='SE', noiseLevel=noiseLevel_opt)
 
     frac_within_1sd = res_val.frac_within_1sd
     frac_within_2sd = res_val.frac_within_2sd
