@@ -31,106 +31,24 @@ import warnings
 import bayesimp_helper
 import scipy.special
 import nlopt
+from get_expt_data import get_data
 
-class Injection(object):
-    """Class to store information on a given injection.
-    """
-    def __init__(self, t_inj, t_start, t_stop):
-        self.t_inj = t_inj
-        self.t_start = t_start
-        self.t_stop = t_stop
 
 # Select shot for which 
 shot_train=1101014019
 shot_val = 1101014029
 
-LBO_inj_train=[Injection(1.25, 1.23, 1.4),] #1101019019
-LBO_inj_val=[Injection(1.0, 0.99, 1.08),]  #1101014029
+t_min_train = 1.23
+t_max_train = 1.4
+t_min_val = 0.99
+t_max_val = 1.08
 
-# ========================================
-# Get data. If this wasn't saved before, then use the following parameters to load it:
-# included lines: 6
-# lambda_min=2.02, lambda_max=2.04
-# baseline start = 1.11, baseline end = 1.22 
-# ---> then press "apply" and forcely close the GUI
-# ========================================
-
-def get_data(query='xeus',**kwargs):
-    # Training data:
-    if query == 'xeus':
-        try:
-            with open('vuv_signals_%d.pkl'%shot_train, 'rb') as f:
-                    vuv_data_train = pkl.load(f)
-        except IOError:
-            vuv_data_train = VUVData(shot_train, LBO_inj_train, debug_plots=True)
-            with open('vuv_signals_%d.pkl'%shot_train, 'wb') as f:
-                pkl.dump(vuv_data_train, f, protocol=pkl.HIGHEST_PROTOCOL)
-
-        # Validation data:
-        try:
-            with open('vuv_signals_%d.pkl'%shot_val, 'rb') as f:
-                    vuv_data_val = pkl.load(f)
-        except IOError:
-            vuv_data_val = VUVData(shot_val, LBO_inj_val, debug_plots=True)
-            with open('vuv_signals_%d.pkl'%shot_val, 'wb') as f:
-                pkl.dump(vuv_data_val, f, protocol=pkl.HIGHEST_PROTOCOL)
-
-    elif query == 'ne':
-        efit_tree = eqtools.CModEFITTree(shot)
-        electrons = MDSplus.Tree('electrons', shot)
-        Z_shift=0.0
-
-        ############################
-        ## Core Thomson Scattering
-        #############################
-        N_ne_CTS = electrons.getNode(r'\electrons::top.yag_new.results.profiles:ne_rz')
-        t_ne_CTS = N_ne_CTS.dim_of().data()
-        ne_CTS = N_ne_CTS.data() / 1e20
-        dev_ne_CTS = electrons.getNode(r'yag_new.results.profiles:ne_err').data() / 1e20
-
-        Z_CTS = electrons.getNode(r'yag_new.results.profiles:z_sorted').data() + Z_shift
-        R_CTS = (electrons.getNode(r'yag.results.param:r').data() * scipy.ones_like(Z_CTS))
-        channels_CTS = range(0, len(Z_CTS))
-
-        t_grid_CTS, Z_grid_CTS = scipy.meshgrid(t_ne_CTS, Z_CTS)
-        t_grid_CTS, R_grid_CTS = scipy.meshgrid(t_ne_CTS, R_CTS)
-        t_grid_CTS, channel_grid_CTS = scipy.meshgrid(t_ne_CTS, channels_CTS)
-
-        ne_CTS_flat = ne_CTS.flatten()
-        ne_err_CTS_flat = dev_ne_CTS.flatten()
-        Z_CTS = scipy.atleast_2d(Z_grid_CTS.flatten())
-        R_CTS = scipy.atleast_2d(R_grid_CTS.flatten())
-        channels_CTS = channel_grid_CTS.flatten()
-        t_CTS = scipy.atleast_2d(t_grid_CTS.flatten())
-
-        X_CTS = scipy.hstack((t_CTS.T, R_CTS.T, Z_CTS.T))
-
-        #########################
-        # Edge Thomson Scattering
-        #########################
-        N_ne_ETS = electrons.getNode(r'yag_edgets.results:ne')
-        t_ne_ETS = N_ne_ETS.dim_of().data()
-        ne_ETS = N_ne_ETS.data() / 1e20
-        dev_ne_ETS = electrons.getNode(r'yag_edgets.results:ne:error').data() / 1e20
-
-        Z_ETS = electrons.getNode(r'yag_edgets.data:fiber_z').data() + Z_shift
-        R_ETS = (electrons.getNode(r'yag.results.param:R').data() *
-                 scipy.ones_like(Z_ETS))
-        channels_ETS = range(0, len(Z_ETS))
-            
-        t_grid_ETS, Z_grid_ETS = scipy.meshgrid(t_ne_ETS, Z_ETS)
-        t_grid_ETS, R_grid_ETS = scipy.meshgrid(t_ne_ETS, R_ETS)
-        t_grid_ETS, channel_grid_ETS = scipy.meshgrid(t_ne_ETS, channels_ETS)
-
-        ne_ETS_flat = ne_ETS.flatten()
-        ne_err_ETS_flat= dev_ne_ETS.flatten()
-        Z_ETS = scipy.atleast_2d(Z_grid_ETS.flatten())
-        R_ETS = scipy.atleast_2d(R_grid_ETS.flatten())
-        channels_ETS = channel_grid_ETS.flatten()
-        t_ETS = scipy.atleast_2d(t_grid_ETS.flatten())
-
-        X_ETS = scipy.hstack((t_ETS.T, R_ETS.T, Z_ETS.T))
-    
+vuv_data_train = get_data(query='xeus', shot = shot_train)
+vuv_data_val = get_data(query='xeus', shot = shot_val)
+ne_train = get_data(query='ne', shot = shot_train, t_min = t_min_train, t_max = t_max_train)
+ne_val = get_data(query='ne', shot = shot_val, t_min = t_min_train, t_max = t_max_train)
+Te_train = get_data(query='Te', shot = shot_train, t_min = t_min_val, t_max = t_max_val)
+Te_val = get_data(query='Te', shot = shot_val,t_min = t_min_val, t_max = t_max_val)
 
     # ==========================================
 
