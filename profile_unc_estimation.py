@@ -64,29 +64,22 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
         Uncertainty in `y`. If absent, the data are interpolated.
     optimize : bool, optional
         Specify whether optimization over hyperparameters should occur or not. Default is True.
+    method : {'GPR', 'spline'}, optional
+        Method to use when interpolating. Default is 'GPR' (Gaussian process
+        regression). Can also use a cubic spline.
     kernel : str, optional
         Type of kernel to be used. At this stage, we create the kernel internally, but in the future
         it would be better to do it externally and just give a gptools kernel object as an argument
         More kernels should be added over time. 
     num_dim : int, optional
         Number of dimensions of the input/output data. Default is 1
-    s_guess : float, optional
-        Initial guess for the signal variance. Default is 0.2.
-    sigma_max : float, optional
-        Maximum value for the signal variance. Default is 10.0
-    l_min : float, optional
-        Initial guess for the covariance length scale. Default is 0.03.
-    fixed_l : bool, optional
-        Set to True to hold the covariance length scale fixed during the MAP
-        estimate. This helps mitigate the effect of bad points. Default is True.
     debug_plots : bool, optional
         Set to True to plot the data, the smoothed curve (with uncertainty) and
         the location of the peak value.
-    method : {'GPR', 'spline'}, optional
-        Method to use when interpolating. Default is 'GPR' (Gaussian process
-        regression). Can also use a cubic spline.
     noiseLevel : float, optional
         Initial guess for a noise multiplier. Default: 2
+    kwargs : dictionary
+        arguments to be passed on to set the hyper-prior bounds for the kernel of choice. 
     """
     # grid = scipy.linspace(max(0, x.min()), min(0.08, x.max()), 1000)
     #grid = scipy.linspace(x.min(), x.max(), 1000)
@@ -230,8 +223,6 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
         res.free_params = gp.free_params[:]
         res.free_param_names = gp.free_param_names[:]
         res.free_param_bounds = gp.free_param_bounds[:]
-    
-        #i = m_gp.argmax()
 
         # Check percentage of points within 3 sd:
         points_in_1sd=0.0; points_in_2sd=0.0; points_in_3sd=0.0
@@ -297,14 +288,12 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
         res.frac_within_1sd=frac_within_1sd
         res.frac_within_2sd=frac_within_2sd
         res.frac_within_3sd=frac_within_3sd
-        res.ll = res_min.fun 
-        res.ll_trials = ll_trials
+        if optimize: 
+            res.ll = res_min.fun 
+            res.ll_trials = ll_trials
         res.BIC = BIC
         res.AIC = AIC
-
-        # res = results(m_gp=m_gp, s_gp=s_gp, frac_within_1sd=frac_within_1sd, frac_within_2sd=frac_within_2sd, frac_within_3sd=frac_within_3sd)
-        # return (m_gp, s_gp, frac_within_1sd, frac_within_2sd, frac_within_3sd)
     else:
         res.m_gp=m_gp
-        #return m_gp
+
     return res
