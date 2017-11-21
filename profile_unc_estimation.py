@@ -36,7 +36,14 @@ from VUV_gui_classes import VUVData,interp_max
 import cPickle as pkl
 import warnings
 
-def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', num_dim=1, sigma_max=10.0, l_min = 0.005, debug_plots=False, noiseLevel=2):
+class hyperparams:
+    def __init__(self,**kwargs):
+        for key, value in kwargs.iteritems():
+            setattr(self, key, value)
+            print "Set hparams.%s = %d" %(key, value) 
+
+
+def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', num_dim=1, debug_plots=True, noiseLevel=2., **kwargs): #sigma_max=10.0, l_min = 0.005, 
     """Interpolate profiles and uncertainties over a dense grid. Also return the maximum 
     value of the smoothed data.
     
@@ -57,29 +64,22 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
         Uncertainty in `y`. If absent, the data are interpolated.
     optimize : bool, optional
         Specify whether optimization over hyperparameters should occur or not. Default is True.
+    method : {'GPR', 'spline'}, optional
+        Method to use when interpolating. Default is 'GPR' (Gaussian process
+        regression). Can also use a cubic spline.
     kernel : str, optional
         Type of kernel to be used. At this stage, we create the kernel internally, but in the future
         it would be better to do it externally and just give a gptools kernel object as an argument
         More kernels should be added over time. 
     num_dim : int, optional
         Number of dimensions of the input/output data. Default is 1
-    s_guess : float, optional
-        Initial guess for the signal variance. Default is 0.2.
-    sigma_max : float, optional
-        Maximum value for the signal variance. Default is 10.0
-    l_min : float, optional
-        Initial guess for the covariance length scale. Default is 0.03.
-    fixed_l : bool, optional
-        Set to True to hold the covariance length scale fixed during the MAP
-        estimate. This helps mitigate the effect of bad points. Default is True.
     debug_plots : bool, optional
         Set to True to plot the data, the smoothed curve (with uncertainty) and
         the location of the peak value.
-    method : {'GPR', 'spline'}, optional
-        Method to use when interpolating. Default is 'GPR' (Gaussian process
-        regression). Can also use a cubic spline.
     noiseLevel : float, optional
         Initial guess for a noise multiplier. Default: 2
+    kwargs : dictionary
+        arguments to be passed on to set the hyper-prior bounds for the kernel of choice. 
     """
     # grid = scipy.linspace(max(0, x.min()), min(0.08, x.max()), 1000)
     #grid = scipy.linspace(x.min(), x.max(), 1000)
@@ -94,35 +94,57 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
 
         # Define the kernel type amongst the implemented options. 
         if kernel=='SE':
+            assert len(kwargs) == 4
+            hparams = hyperparams(**kwargs); #hparams.set_kwargs(**kwargs)
+            # Defaults:
+            if not hasattr(hparams,'sigma_mean'): hparams.sigma_mean = 2.0
+            if not hasattr(hparams,'l_mean'): hparams.l_mean = 0.005
+            if not hasattr(hparams,'sigma_sd'): hparams.sigma_sd = 10.0
+            if not hasattr(hparams,'l_sd'): hparams.l_sd = 0.1
+
             hprior = (
-            # gptools.UniformJointPrior([(0, sigma_max),]) *
-            gptools.GammaJointPriorAlt([2.0,], [sigma_max,])*
-            gptools.GammaJointPriorAlt([l_min,], [0.1,])
+            gptools.GammaJointPriorAlt([hparams.sigma_mean, hparams.l_mean], [hparams.sigma_sd,hparams.l_sd])
             )
             k = gptools.SquaredExponentialKernel(
                 #= ====== =======================================================================
-                #0 sigmaf Amplitude of the covariance function
+                #0 sigma  Amplitude of the covariance function
                 #1 l1     Small-X saturation value of the length scale.
                 #2 l2     Large-X saturation value of the length scale.
                 #= ====== =======================================================================
                 # param_bounds=[(0, sigma_max), (0, 2.0)],
                 hyperprior=hprior,
-                initial_params=[10000.0, 400000.0],
+                initial_params=[10000.0, 400000.0], # random, doesn't matter because we do random starts anyway
                 fixed_params=[False]*2
             )
             
         elif kernel=='gibbs':
-            # Set this with 
+            if num_dim == 1: assert len(kwargs) == 10
+            hparams = hyperparams(**kwargs); 
+            # Defaults:
+            if not hasattr(hparams,'sigma_min'): hparams.sigma_min = 0.0
+            if not hasattr(hparams,'sigma_max'): hparams.sigma_max = 10.0
+
+            if not hasattr(hparams,'l1_mean'): hparams.l1_mean = 0.3
+            if not hasattr(hparams,'l1_sd'): hparams.l1_sd = 0.3
+
+            if not hasattr(hparams,'l2_mean'): hparams.l2_mean = 0.5
+            if not hasattr(hparams,'l2_sd'): hparams.l2_sd = 0.25
+            
+            if not hasattr(hparams,'lw_mean'): hparams.lw_mean = 0.0
+            if not hasattr(hparams,'lw_sd'): hparams.lw_sd = 0.3
+            
+            if not hasattr(hparams,'x0_mean'): hparams.x0_mean = 0.0
+            if not hasattr(hparams,'x0_sd'): hparams.x0_sd = 0.3
+
             hprior=(
-                # Set a uniform prior for sigmaf
-                gptools.UniformJointPrior([(0,10),])*
-                # Set Gamma distribution('alternative form') for the other 4 priors of the Gibbs 1D Tanh kernel
-                gptools.GammaJointPriorAlt([0.3,0.5,0.0,0.0],[0.3,0.25,0.3,0.3])
+                gptools.UniformJointPrior([(hparams.sigma_min,hparams.sigma_max),])*
+                gptools.GammaJointPriorAlt([hparams.l1_mean,hparams.l2_mean,hparams.lw_mean,hparams.x0_mean],
+                    [hparams.l1_sd,hparams.l2_sd,hparams.lw_sd,hparams.x0_sd])
                 )
 
             k = gptools.GibbsKernel1dTanh(
                 #= ====== =======================================================================
-                #0 sigmaf Amplitude of the covariance function
+                #0 sigma  Amplitude of the covariance function
                 #1 l1     Small-X saturation value of the length scale.
                 #2 l2     Large-X saturation value of the length scale.
                 #3 lw     Length scale of the transition between the two length scales.
@@ -133,6 +155,14 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
                 hyperprior=hprior,
                 )
         elif kernel=='matern52':
+            if num_dim == 1: assert len(kwargs) == 4
+            hparams = hyperparams(**kwargs); 
+            # Defaults:
+            if not hasattr(hparams,'sigma_mean'): hparams.sigma_mean = 2.0
+            if not hasattr(hparams,'l_mean'): hparams.l_mean = 0.005
+            if not hasattr(hparams,'sigma_sd'): hparams.sigma_sd = 10.0
+            if not hasattr(hparams,'l_sd'): hparams.l_sd = 0.1
+
             hprior=( 
                 gptools.GammaJointPriorAlt([2.0,0.05],[5.0,0.25])
                 ) 
@@ -180,20 +210,19 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
             if y[i]==0:
                 gp.add_data(x[i], 0, n=0, err_y=0.0)
                 gp.add_data(x[i], 0, n=0, err_y=0.0)
+                gp.add_data(x[i], 0, n=1, err_y=0.0)
         
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message="invalid value encountered in subtract")
             if optimize: 
-                gp.optimize_hyperparameters(verbose=True, random_starts=200)
-            else:
+                res_min, ll_trials = gp.optimize_hyperparameters(verbose=True, random_starts=200)
+            else: 
                 print 'Optimization is turned off. Using initial guesses for hyperparameters!'
 
         m_gp, s_gp = gp.predict(grid,noise=True)
         res.free_params = gp.free_params[:]
         res.free_param_names = gp.free_param_names[:]
         res.free_param_bounds = gp.free_param_bounds[:]
-    
-        #i = m_gp.argmax()
 
         # Check percentage of points within 3 sd:
         points_in_1sd=0.0; points_in_2sd=0.0; points_in_3sd=0.0
@@ -214,9 +243,24 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
         print 'Fraction of points within 2 sd: {}'.format(frac_within_2sd)
         print 'Fraction of points within 3 sd: {}'.format(frac_within_3sd)
 
+        ###
+        print("Estimating AIC, BIC...")
+        sum2_diff = 0 
+        for i in range(len(y)):
+            # Find value of grid that is the closest to x[i]:
+            gidx = np.argmin(abs(grid - x[i]))
+            sum2_diff = (m_gp[gidx]-y[i])**2
+                
+        chi_squared = float(sum2_diff) / len(y)
+        num_params = len(hparams.__dict__) / 2
+        num_data = len(y)
+
+        AIC = chi_squared + 2.0 * num_params 
+        BIC = chi_squared + num_params * scipy.log(num_data)
+
     elif method == 'spline':
         m_gp = scipy.interpolate.UnivariateSpline(
-            x, y, w=1.0 / err_y, s=2*len(x)
+            x, y, w=1.0 / err_y, s=None #2*len(x)
         )(grid)
         if scipy.isnan(m_gp).any():
             print(x)
@@ -235,7 +279,8 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
             gptools.univariate_envelope_plot(grid, m_gp, s_gp, ax=a,label='Inferred')
             #a.fill_between(grid, m_gp - s_gp, m_gp + s_gp, color='g', alpha=0.5)
         plt.plot(grid[m_gp.argmax()],m_gp.max(),'r*')
-        #a.axvline(grid[i])
+        plt.xlabel('time (s)', fontsize=14)
+        plt.xlabel('Signal Amplitude (A.U.)', fontsize=14)
 
     if method == 'GPR':
         res.m_gp=m_gp
@@ -243,10 +288,12 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
         res.frac_within_1sd=frac_within_1sd
         res.frac_within_2sd=frac_within_2sd
         res.frac_within_3sd=frac_within_3sd
-
-        # res = results(m_gp=m_gp, s_gp=s_gp, frac_within_1sd=frac_within_1sd, frac_within_2sd=frac_within_2sd, frac_within_3sd=frac_within_3sd)
-        # return (m_gp, s_gp, frac_within_1sd, frac_within_2sd, frac_within_3sd)
+        if optimize: 
+            res.ll = res_min.fun 
+            res.ll_trials = ll_trials
+        res.BIC = BIC
+        res.AIC = AIC
     else:
         res.m_gp=m_gp
-        #return m_gp
+
     return res
