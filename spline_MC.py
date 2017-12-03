@@ -60,7 +60,6 @@ def spline_MC(xin,yin,xout,yin_err,n_trial):
 	#plt.show()
 	
 	gptools.univariate_envelope_plot(xout, m, sigma)
-	
 	#plt.plot(xin,yin,'.')
 	#plt.xlabel('time [s]')
 	#plt.ylabel('Signal Amplitude [A.U.]')

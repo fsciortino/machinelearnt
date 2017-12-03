@@ -40,7 +40,7 @@ class hyperparams:
     def __init__(self,**kwargs):
         for key, value in kwargs.iteritems():
             setattr(self, key, value)
-            print "Set hparams.%s = %d" %(key, value) 
+            #print "Set hparams.%s = %d" %(key, value) 
 
 
 def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', num_dim=1, debug_plots=True, noiseLevel=2., **kwargs): #sigma_max=10.0, l_min = 0.005, 
@@ -201,7 +201,7 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
 
         # Create additional noise to optimize over
         nk = gptools.DiagonalNoiseKernel(1, n=0, initial_noise=np.mean(err_y)*noiseLevel,
-                        fixed_noise=False, noise_bound=(np.min(err_y), np.max(err_y)*noiseLevel))#, enforce_bounds=True)
+                        fixed_noise=False, noise_bound=(np.mean(err_y)*noiseLevel*(4.0/5.0),np.mean(err_y)*noiseLevel*(6.0/5.0)))    #(np.min(err_y), np.max(err_y)*noiseLevel))#, enforce_bounds=True)
         print "noise_bound= [", np.min(err_y), ",",np.max(err_y)*noiseLevel,"]"
 
         gp = gptools.GaussianProcess(k, X=x, y=y, err_y=err_y, noise_k=nk)
@@ -281,6 +281,7 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
         plt.plot(grid[m_gp.argmax()],m_gp.max(),'r*')
         plt.xlabel('time (s)', fontsize=14)
         plt.xlabel('Signal Amplitude (A.U.)', fontsize=14)
+        plt.tick_params(axis='both',which='major', labelsize=14)
 
     if method == 'GPR':
         res.m_gp=m_gp
