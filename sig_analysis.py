@@ -246,7 +246,6 @@ range_2sd = scipy.special.erf(2/np.sqrt(2)) - range_1sd
 range_3sd = scipy.special.erf(3/np.sqrt(2)) - range_2sd
 
 SE_params={'sigma_mean': 2, 'l_mean': 1e-4, 'sigma_sd': 10, 'l_sd': 0.01}
-    
 def SE_func(t_train, y_clean_train, y_unc_train, nL, SE_params):
     f_output = type('', (), {})()
     f_output.t_train = t_train; 
@@ -287,9 +286,9 @@ def MSE_loss(x,grad):
 opt = nlopt.opt(nlopt.LN_SBPLX, 1)  # LN_SBPLX
 opt.set_min_objective(MSE_loss)
 opt.set_lower_bounds([1.0,] * opt.get_dimension())
-opt.set_upper_bounds([5.0,] * opt.get_dimension())
+opt.set_upper_bounds([3.0,] * opt.get_dimension())
 # opt.set_ftol_abs(1.0)
-opt.set_ftol_rel(1e-3)
+opt.set_xtol_rel(0.1)
 # opt.set_maxeval(40000)#(100000)
 #opt.set_maxtime(3600)
 opt.set_maxtime(1000)
