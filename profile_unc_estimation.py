@@ -118,7 +118,7 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
             )
             
         elif kernel=='gibbs':
-            if num_dim == 1: assert len(kwargs) == 10
+            #if num_dim == 1: assert len(kwargs) == 10
             hparams = hyperparams(**kwargs); 
             # Defaults:
             if not hasattr(hparams,'sigma_min'): hparams.sigma_min = 0.0

@@ -55,9 +55,15 @@ def spline_MC(xin,yin,xout,yin_err,n_trial):
 
 	# Plot mean and error in graph similar to the GPR curves using the 'errorfill' function defined here
 
-	plt.errorbar(xout,m,sigma)
-	errorfill(xout,m,sigma)
-	plt.show()
+	#plt.errorbar(xout,m,sigma)
+	#errorfill(xout,m,sigma)
+	#plt.show()
+	
+	gptools.univariate_envelope_plot(xout, m, sigma)
+	
+	#plt.plot(xin,yin,'.')
+	#plt.xlabel('time [s]')
+	#plt.ylabel('Signal Amplitude [A.U.]')
 
 	return m, sigma
 
