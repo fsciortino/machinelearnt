@@ -215,7 +215,7 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message="invalid value encountered in subtract")
             if optimize: 
-                res_min, ll_trials = gp.optimize_hyperparameters(verbose=True, random_starts=200)
+                res_min, ll_trials = gp.optimize_hyperparameters(verbose=True, random_starts=100)
             else: 
                 print 'Optimization is turned off. Using initial guesses for hyperparameters!'
 
