@@ -70,6 +70,8 @@ t_val=signal_val.t
 # Benchmark: plot using augmented uncertainties and Monte Carlo interpolation
 signal_u = bayesimp_helper.get_systematic_uncertainty(signal, plot=True)
 
+signal_u_val = bayesimp_helper.get_systematic_uncertainty(signal_val, plot=True)
+
 
 # ===========================================================
 #
@@ -103,19 +105,23 @@ def SE_func(t_train, y_clean_train, y_unc_train, nL, SE_params):
 def MSE_loss(x,grad): 
     #assert len(grad) == 0, "grad is not empty, but it should"
 
-    nL = x    
-    f_output = SE_func(t_train, y_clean_train, y_unc_train, nL, SE_params) 
-    print '------> f_output.noiseLevel_opt = ', f_output.noiseLevel_opt 
-    # Find validation set error
-    res_val = prof_fit.profile_fitting(t_val,y_clean_val, err_y=y_unc_val, optimize=False,
-         method='GPR',kernel='SE',noiseLevel=f_output.noiseLevel_opt,debug_plots=False, **SE_params)
+    nL = x[0]    
+    print nL
+    res_val = prof_fit.profile_fitting(t_val,y_clean_val, err_y=y_unc_val, optimize=True,
+         method='GPR',kernel='SE',noiseLevel=nL,debug_plots=True, **SE_params)
 
     frac_within_1sd = res_val.frac_within_1sd
     frac_within_2sd = res_val.frac_within_2sd
     frac_within_3sd = res_val.frac_within_3sd
 
-    loss = 0.5 * ((range_1sd - frac_within_1sd)**2 + (range_2sd - frac_within_2sd)**2 + (range_3sd - frac_within_3sd)**2)
-    print '***************** loss = ', loss, ' ******************'
+    y_descent = y_clean_val[t_val > 0.005]
+    t_descent = t_val[t_val > 0.005]
+    grad_y = np.gradient(y_descent,t_descent)
+    reg = np.sum([(grad_y[i])**2/y_descent[i] for i in range(len(y_descent))])
+
+    lam = 1.0/200
+    loss = 0.5 * ((range_1sd - frac_within_1sd)**2 + (range_2sd - frac_within_2sd)**2 + (range_3sd - frac_within_3sd)**2) + lam * reg
+    print '***************** Validation loss = ', loss, ' ******************'
     return loss
 
 opt = nlopt.opt(nlopt.LN_SBPLX, 1)  # LN_SBPLX
@@ -128,9 +134,18 @@ opt.set_xtol_rel(0.1)
 #opt.set_maxtime(3600)
 opt.set_maxtime(1000)
 
+# Launch optimization
 uopt = opt.optimize(np.asarray([2.0]))
 
-
+# find statistics for optimized result:
+res_val = prof_fit.profile_fitting(t_val,y_clean_val, err_y=y_unc_val, optimize=True,
+     method='GPR',kernel='SE',noiseLevel=uopt[0],debug_plots=True, **SE_params)
+frac_within_1sd = res_val.frac_within_1sd
+frac_within_2sd = res_val.frac_within_2sd
+frac_within_3sd = res_val.frac_within_3sd
+print 'Fraction of points within 1 sd: {}'.format(frac_within_1sd)
+print 'Fraction of points within 2 sd: {}'.format(frac_within_2sd)
+print 'Fraction of points within 3 sd: {}'.format(frac_within_3sd)
 # ==================================================================
 # 
 #                             TRAINING

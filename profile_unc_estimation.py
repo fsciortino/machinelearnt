@@ -199,9 +199,9 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
         else:
             ValueError('Only the SE kernel is currently defined! Break here.')
 
-        # Create additional noise to optimize over
+        # Create additional noise to optimize over (the first argument is n_dims)
         nk = gptools.DiagonalNoiseKernel(1, n=0, initial_noise=np.mean(err_y)*noiseLevel,
-                        fixed_noise=False, noise_bound=(np.mean(err_y)*noiseLevel*(4.0/5.0),np.mean(err_y)*noiseLevel*(6.0/5.0)))    #(np.min(err_y), np.max(err_y)*noiseLevel))#, enforce_bounds=True)
+                        fixed_noise=True, noise_bound=(np.mean(err_y)*noiseLevel*(4.0/5.0),np.mean(err_y)*noiseLevel*(6.0/5.0)))    #(np.min(err_y), np.max(err_y)*noiseLevel))#, enforce_bounds=True)
         print "noise_bound= [", np.min(err_y), ",",np.max(err_y)*noiseLevel,"]"
 
         gp = gptools.GaussianProcess(k, X=x, y=y, err_y=err_y, noise_k=nk)
@@ -215,7 +215,7 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message="invalid value encountered in subtract")
             if optimize: 
-                res_min, ll_trials = gp.optimize_hyperparameters(verbose=True, random_starts=100)
+                res_min, ll_trials = gp.optimize_hyperparameters(verbose=False, random_starts=100)
             else: 
                 print 'Optimization is turned off. Using initial guesses for hyperparameters!'
 
@@ -239,10 +239,7 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
         frac_within_1sd = float(points_in_1sd)/ len(y)
         frac_within_2sd = float(points_in_2sd)/ len(y)
         frac_within_3sd = float(points_in_3sd)/ len(y)
-        print 'Fraction of points within 1 sd: {}'.format(frac_within_1sd)
-        print 'Fraction of points within 2 sd: {}'.format(frac_within_2sd)
-        print 'Fraction of points within 3 sd: {}'.format(frac_within_3sd)
-
+        
         ###
         print("Estimating AIC, BIC...")
         sum2_diff = 0 
