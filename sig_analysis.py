@@ -36,20 +36,20 @@ from get_expt_data import get_data
 from profiletools import errorbar3d
 
 # Select shot for which 
-shot_train=1101014019
-shot_val = 1101014029
+shot_train = 1101014019
+shot_val1 = 1101014029
+shot_val2 = 1101014030
 
-t_min_train = 1.23
-t_max_train = 1.4
-t_min_val = 0.99
-t_max_val = 1.08
+vuv_data_train = get_data(query='xeus', shot = shot_train, t_min= 1.23, t_max = 1.4)
+vuv_data_val1 = get_data(query='xeus', shot = shot_val1, t_min= 0.99, t_max = 1.08)
+vuv_data_val2 = get_data(query='xeus', shot = shot_val2, t_min= 0.8, t_max = 0.86)
+vuv_data_val3 = get_data(query='xeus', shot = shot_val2, t_min= 1.0, t_max = 1.08)
+vuv_data_val4 = get_data(query='xeus', shot = shot_val2, t_min= 1.2, t_max = 1.28)
 
-vuv_data_train = get_data(query='xeus', shot = shot_train)
-vuv_data_val = get_data(query='xeus', shot = shot_val)
-ne_train = get_data(query='ne', shot = shot_train, t_min = t_min_train, t_max = t_max_train)
-ne_val = get_data(query='ne', shot = shot_val, t_min = t_min_train, t_max = t_max_train)
-Te_train = get_data(query='Te', shot = shot_train, t_min = t_min_val, t_max = t_max_val)
-Te_val = get_data(query='Te', shot = shot_val,t_min = t_min_val, t_max = t_max_val)
+ne_train = get_data(query='ne', shot = shot_train, t_min = 1.23, t_max = 1.4)
+ne_val = get_data(query='ne', shot = shot_val1, t_min = 0.99, t_max = 1.08)
+Te_train = get_data(query='Te', shot = shot_train, t_min = 1.23, t_max = 1.4)
+Te_val = get_data(query='Te', shot = shot_val1,t_min = 0.99, t_max = 1.08)
 
 
 # ================================== XEUS  ==============================
@@ -61,7 +61,7 @@ y_unc_train=signal.std_y[:,0]
 t_train=signal.t
 
 # Extract *VALIDATION* signal in simple form
-signal_val = vuv_data_val.signal
+signal_val = vuv_data_val1.signal
 y_val=signal_val.y
 y_clean_val=np.asarray([y_val[i] if y_val[i]>0 else np.array([0.0,]) for i in range(len(y_val))])[:,0]
 y_unc_val=signal_val.std_y[:,0]
@@ -84,7 +84,12 @@ range_2sd = scipy.special.erf(2/np.sqrt(2)) - range_1sd
 range_3sd = scipy.special.erf(3/np.sqrt(2)) - range_2sd
 
 SE_params={'sigma_mean': 2, 'l_mean': 1e-4, 'sigma_sd': 10, 'l_sd': 0.01}
-def SE_func(t_train, y_clean_train, y_unc_train, nL, SE_params):
+lam = [1.0/300, 1.0/250, 1.0/200, 1.0/150,1.0/100, 0.5/100]
+
+def SE_func(x,grad):
+    nL = x[0]    
+    print nL
+
     f_output = type('', (), {})()
     f_output.t_train = t_train; 
     f_output.y_clean_train = y_clean_train; 
@@ -114,13 +119,13 @@ def MSE_loss(x,grad):
     frac_within_2sd = res_val.frac_within_2sd
     frac_within_3sd = res_val.frac_within_3sd
 
-    y_descent = y_clean_val[t_val > 0.005]
-    t_descent = t_val[t_val > 0.005]
-    grad_y = np.gradient(y_descent,t_descent)
-    reg = np.sum([(grad_y[i])**2/y_descent[i] for i in range(len(y_descent))])
+    #y_descent = y_clean_val[t_val > 0.005]
+    #t_descent = t_val[t_val > 0.005]
+    #grad_y = np.gradient(y_descent,t_descent)
+    #reg = np.sum([(grad_y[i])**2/y_descent[i] for i in range(len(y_descent))])
 
-    lam = 1.0/200
-    loss = 0.5 * ((range_1sd - frac_within_1sd)**2 + (range_2sd - frac_within_2sd)**2 + (range_3sd - frac_within_3sd)**2) + lam * reg
+    #lam = 1.0/200
+    loss = 0.5 * ((range_1sd - frac_within_1sd)**2 + (range_2sd - frac_within_2sd)**2 + (range_3sd - frac_within_3sd)**2)# + lam * reg
     print '***************** Validation loss = ', loss, ' ******************'
     return loss
 
@@ -146,6 +151,53 @@ frac_within_3sd = res_val.frac_within_3sd
 print 'Fraction of points within 1 sd: {}'.format(frac_within_1sd)
 print 'Fraction of points within 2 sd: {}'.format(frac_within_2sd)
 print 'Fraction of points within 3 sd: {}'.format(frac_within_3sd)
+
+######################################
+# with Gibbs kernel
+gibbs_params={'sigma_min':0.0,'sigma_max':2.0,'l1_mean':0.005,'l2_mean':0.1,'lw_mean':0.01,'x0_mean':0.0,
+                'l1_sd':0.05,'l2_sd':0.05,'lw_sd':0.02,'x0_sd':0.002}
+gibbs_params2={'sigma_min':0.0,'sigma_max':1.0,'l1_mean':0.1,'l2_mean':0.005,'lw_mean':0.02,'x0_mean':0.02,
+                'l1_sd':0.005,'l2_sd':0.005,'lw_sd':0.3,'x0_sd':0.03}
+def MSE_loss(x,grad): 
+    nL = x[0]    
+    print nL
+    res_val = prof_fit.profile_fitting(t_val,y_clean_val, err_y=y_unc_val, optimize=True,
+         method='GPR',kernel='gibbs',noiseLevel=nL,debug_plots=True, **gibbs_params)
+
+    frac_within_1sd = res_val.frac_within_1sd
+    frac_within_2sd = res_val.frac_within_2sd
+    frac_within_3sd = res_val.frac_within_3sd
+    loss = 0.5 * ((range_1sd - frac_within_1sd)**2 + (range_2sd - frac_within_2sd)**2 + (range_3sd - frac_within_3sd)**2)
+    print '***************** Validation loss = ', loss, ' ******************'
+    return loss
+
+opt = nlopt.opt(nlopt.LN_SBPLX, 1)  
+opt.set_min_objective(MSE_loss)
+opt.set_lower_bounds([1.0,] * opt.get_dimension())
+opt.set_upper_bounds([8.0,] * opt.get_dimension())
+opt.set_xtol_rel(0.1)
+opt.set_maxtime(1000)
+
+# Launch optimization
+uopt = opt.optimize(np.asarray([2.0]))
+print ' HEY! The optimal noise is ', uopt[0]
+# find statistics for optimized result:
+res_val = prof_fit.profile_fitting(t_val, y_clean_val, err_y=y_unc_val, optimize=True,
+         method='GPR',kernel='gibbs',noiseLevel=uopt[0],debug_plots=True, **gibbs_params)
+frac_within_1sd = res_val.frac_within_1sd
+frac_within_2sd = res_val.frac_within_2sd
+frac_within_3sd = res_val.frac_within_3sd
+print 'Fraction of points within 1 sd: {}'.format(frac_within_1sd)
+print 'Fraction of points within 2 sd: {}'.format(frac_within_2sd)
+print 'Fraction of points within 3 sd: {}'.format(frac_within_3sd)
+
+gibbs_params2={'sigma_min':0.0,'sigma_max':1.0,'l1_mean':0.1,'l2_mean':0.005,'lw_mean':0.02,'x0_mean':0.02,
+                'l1_sd':0.005,'l2_sd':0.005,'lw_sd':0.3,'x0_sd':0.03}
+res_val = prof_fit.profile_fitting(t_train, y_clean_train, err_y=y_unc_train, optimize=True,
+         method='GPR',kernel='gibbs',noiseLevel=4,debug_plots=True, **gibbs_params2)
+
+
+
 # ==================================================================
 # 
 #                             TRAINING
@@ -164,7 +216,7 @@ SE_params={'sigma_mean': 1.0, 'l_mean': 1e-4, 'sigma_sd': 1.5, 'l_sd':0.001}
 SE_params={'sigma_mean': 1.0, 'l_mean': 1e-4, 'sigma_sd': 0.5, 'l_sd': 0.001}
 SE_params={'sigma_mean': 2, 'l_mean': 1e-4, 'sigma_sd': 10, 'l_sd': 0.01}
 res = prof_fit.profile_fitting(t_train, y_clean_train, err_y=y_unc_train, method='GPR',
-                                kernel='SE',noiseLevel=2, **SE_params)
+                                kernel='SE',noiseLevel=4, **SE_params)
 SE_logposterior0 = res.ll
 SE_BIC0 = res.BIC
 

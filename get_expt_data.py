@@ -40,6 +40,14 @@ import profiletools
 def get_data(query='xeus', shot = 1101014019, t_min = None, t_max = None):
     #data= type('', (), {})()
     # Training data:
+    if t_min == None and t_max ==None:
+        if shot == 1101014019: 
+            t_min = 1.23; t_max= 1.4
+        elif shot == 1101014029: 
+            t_min = 0.99; t_max = 1.08
+    else: 
+        ValueError('t_min and t_max not correctly given')
+
     if query == 'xeus':
         try:
             with open('vuv_signals_%d.pkl'%shot, 'rb') as f:
@@ -52,8 +60,7 @@ def get_data(query='xeus', shot = 1101014019, t_min = None, t_max = None):
                     self.t_start = t_start
                     self.t_stop = t_stop
 
-            LBO_inj_train=[Injection(t_min_train+0.01, t_min_train, t_max_train),] #1101019019
-            LBO_inj_val=[Injection(t_min_val+0.01, t_min_val, t_max_val),]  #1101014029
+            LBO_inj=[Injection(t_min+0.01, t_min, t_max),]  
 
             vuv_data = VUVData(shot, LBO_inj, debug_plots=True)
             with open('vuv_signals_%d.pkl'%shot, 'wb') as f:
@@ -62,25 +69,11 @@ def get_data(query='xeus', shot = 1101014019, t_min = None, t_max = None):
         return vuv_data
 
     elif query == 'ne':
-        if t_min == None and t_max ==None:
-            if shot == 1101014019: 
-                t_min = 1.23; t_max= 1.4
-            elif shot == 1101014029: 
-                t_min = 0.99; t_max = 1.08
-        else: 
-            ValueError('t_min and t_max not correctly given')
-
         p_ne=profiletools.ne(shot, include=['CTS','ETS'],abscissa='r/a',t_min=t_min,t_max=t_max) #,'GPC','GPC2'],abscissa='r/a',t_min=1.0,t_max=1.08)
         return p_ne
 
     elif query == 'Te':
-        if t_min == None and t_max ==None:
-            if shot == 1101014019: 
-                t_min = 1.23; t_max= 1.4
-            elif shot == 1101014029: 
-                t_min = 0.99; t_max = 1.08
-        else: 
-            ValueError('t_min and t_max not correctly given')
-
         p_Te=profiletools.Te(shot, include=['CTS','ETS'],abscissa='r/a',t_min=t_min,t_max=t_max)  #,'GPC','GPC2'],abscissa='r/a',t_min=1.0,t_max=1.08)
         return p_Te
+
+
