@@ -37,7 +37,7 @@ import profiletools
 # ---> then press "apply" and forcely close the GUI
 # ========================================
 
-def get_data(query='xeus', shot = 1101014019, t_min = None, t_max = None):
+def get_data(query='xeus', shot = 1101014019, t_min = None, t_max = None, inj_idx = None):
     #data= type('', (), {})()
     # Training data:
     if t_min == None and t_max ==None:
@@ -48,9 +48,12 @@ def get_data(query='xeus', shot = 1101014019, t_min = None, t_max = None):
     else: 
         ValueError('t_min and t_max not correctly given')
 
+    if inj_idx == None:
+        inj_idx = 1
+        
     if query == 'xeus':
         try:
-            with open('vuv_signals_%d.pkl'%shot, 'rb') as f:
+            with open('vuv_signals_%d_%d.pkl'%(shot,inj_idx), 'rb') as f:
                     vuv_data = pkl.load(f)
         except IOError:
             class Injection(object):
@@ -63,7 +66,7 @@ def get_data(query='xeus', shot = 1101014019, t_min = None, t_max = None):
             LBO_inj=[Injection(t_min+0.01, t_min, t_max),]  
 
             vuv_data = VUVData(shot, LBO_inj, debug_plots=True)
-            with open('vuv_signals_%d.pkl'%shot, 'wb') as f:
+            with open('vuv_signals_%d_%d.pkl'%(shot,inj_idx), 'wb') as f:
                 pkl.dump(vuv_data, f, protocol=pkl.HIGHEST_PROTOCOL)
 
         return vuv_data

@@ -113,6 +113,13 @@ class VUVData(object):
             vuv_uncertainties = scipy.asarray(vuv_uncertainties)
             vuv_times = scipy.asarray(vuv_times)
             
+            # shift the entire signal such that the mean of the pre-injection signal is 0
+            # (considering only the 20ms before the injection)
+            # import pdb
+            # pdb.set_trace()
+            pre_inj_sig_bool = np.asarray([a and b for a,b in zip(np.ndarray.tolist(vuv_times[0,:]>-0.02), np.ndarray.tolist(vuv_times[0,:]<0.0))])
+            vuv_signals = vuv_signals - np.mean(vuv_signals[0,pre_inj_sig_bool])
+
             # We don't have a brightness cal for XEUS or LoWEUS, so normalize to
             # the peak:
             vuv_signals_norm = scipy.nan * scipy.zeros_like(vuv_signals)

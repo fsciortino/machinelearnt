@@ -277,7 +277,7 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
             #a.fill_between(grid, m_gp - s_gp, m_gp + s_gp, color='g', alpha=0.5)
         plt.plot(grid[m_gp.argmax()],m_gp.max(),'r*')
         plt.xlabel('time (s)', fontsize=14)
-        plt.xlabel('Signal Amplitude (A.U.)', fontsize=14)
+        plt.ylabel('Signal Amplitude (A.U.)', fontsize=14)
         plt.tick_params(axis='both',which='major', labelsize=14)
 
     if method == 'GPR':

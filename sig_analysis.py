@@ -40,17 +40,20 @@ shot_train = 1101014019
 shot_val1 = 1101014029
 shot_val2 = 1101014030
 
-vuv_data_train = get_data(query='xeus', shot = shot_train, t_min= 1.23, t_max = 1.4)
-vuv_data_val1 = get_data(query='xeus', shot = shot_val1, t_min= 0.99, t_max = 1.08)
-vuv_data_val2 = get_data(query='xeus', shot = shot_val2, t_min= 0.8, t_max = 0.86)
-vuv_data_val3 = get_data(query='xeus', shot = shot_val2, t_min= 1.0, t_max = 1.08)
-vuv_data_val4 = get_data(query='xeus', shot = shot_val2, t_min= 1.2, t_max = 1.28)
+# XEUS data
+vuv_data_train = get_data(query='xeus', shot = shot_train, t_min= 1.23, t_max = 1.4, inj_idx = 1)
+vuv_data_val1 = get_data(query='xeus', shot = shot_val1, t_min= 0.99, t_max = 1.08, inj_idx = 1)
+vuv_data_val2 = get_data(query='xeus', shot = shot_val2, t_min= 0.77, t_max = 0.94, inj_idx = 2)
+vuv_data_val3 = get_data(query='xeus', shot = shot_val2, t_min= 0.99, t_max = 1.14, inj_idx = 3)
+vuv_data_val4 = get_data(query='xeus', shot = shot_val2, t_min= 1.19, t_max = 1.34, inj_idx = 4)
 
+# ne data
 ne_train = get_data(query='ne', shot = shot_train, t_min = 1.23, t_max = 1.4)
-ne_val = get_data(query='ne', shot = shot_val1, t_min = 0.99, t_max = 1.08)
-Te_train = get_data(query='Te', shot = shot_train, t_min = 1.23, t_max = 1.4)
-Te_val = get_data(query='Te', shot = shot_val1,t_min = 0.99, t_max = 1.08)
+ne_val1 = get_data(query='ne', shot = shot_val1, t_min = 0.99, t_max = 1.08)
 
+# Te data
+Te_train = get_data(query='Te', shot = shot_train, t_min = 1.23, t_max = 1.4)
+Te_val1 = get_data(query='Te', shot = shot_val1,t_min = 0.99, t_max = 1.08)
 
 # ================================== XEUS  ==============================
 # Extract *TRAINING* signal in simple form
@@ -67,12 +70,28 @@ y_clean_val=np.asarray([y_val[i] if y_val[i]>0 else np.array([0.0,]) for i in ra
 y_unc_val=signal_val.std_y[:,0]
 t_val=signal_val.t
 
+# Extract *VALIDATION 2* signal in simple form
+signal_val2 = vuv_data_val2.signal
+y_val2=signal_val2.y
+y_clean_val2=np.asarray([y_val2[i] if y_val2[i]>0 else np.array([0.0,]) for i in range(len(y_val2))])[:,0]
+y_unc_val2=signal_val2.std_y[:,0]
+t_val=signal_val2.t
+
+# Extract *VALIDATION 2* signal in simple form
+signal_val3 = vuv_data_val3.signal
+y_val3=signal_val3.y
+y_clean_val3=np.asarray([y_val3[i] if y_val3[i]>0 else np.array([0.0,]) for i in range(len(y_val3))])[:,0]
+y_unc_val3=signal_val3.std_y[:,0]
+t_val=signal_val3.t
+
 # Benchmark: plot using augmented uncertainties and Monte Carlo interpolation
 signal_u = bayesimp_helper.get_systematic_uncertainty(signal, plot=True)
 
 signal_u_val = bayesimp_helper.get_systematic_uncertainty(signal_val, plot=True)
 
+signal_u_val2 = bayesimp_helper.get_systematic_uncertainty(signal_val2, plot=True)
 
+signal_u_val3 = bayesimp_helper.get_systematic_uncertainty(signal_val3, plot=True)
 # ===========================================================
 #
 #                           OPTIMIZATION
