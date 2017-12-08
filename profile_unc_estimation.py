@@ -275,7 +275,7 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
         if method == 'GPR':
             gptools.univariate_envelope_plot(grid, m_gp, s_gp, ax=a,label='Inferred')
             #a.fill_between(grid, m_gp - s_gp, m_gp + s_gp, color='g', alpha=0.5)
-        plt.plot(grid[m_gp.argmax()],m_gp.max(),'r*')
+        #plt.plot(grid[m_gp.argmax()],m_gp.max(),'r*')
         plt.xlabel('time (s)', fontsize=14)
         plt.ylabel('Signal Amplitude (A.U.)', fontsize=14)
         plt.tick_params(axis='both',which='major', labelsize=14)
@@ -297,21 +297,3 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
     return res
 
 
-#====================================================================
-#
-#       Loss function for Gaussian-distributed uncertainties
-#
-#====================================================================
-def MSE_Gaussian_loss(x,grad,params): 
-    #assert len(grad) == 0, "grad is not empty, but it should"
-    nL = x[0]; print nL
-    res_val = profile_fitting(t_val,y_clean_val, err_y=y_unc_val, optimize=True,
-         method='GPR',kernel='SE',noiseLevel=nL,debug_plots=True, **params)
-
-    frac_within_1sd = res_val.frac_within_1sd
-    frac_within_2sd = res_val.frac_within_2sd
-    frac_within_3sd = res_val.frac_within_3sd
-
-    loss = 0.5 * ((range_1sd - frac_within_1sd)**2 + (range_2sd - frac_within_2sd)**2 + (range_3sd - frac_within_3sd)**2)# + lam * reg
-    print '***************** Validation loss = ', loss, ' ******************'
-    return loss

@@ -34,7 +34,7 @@ from profiletools import errorbar3d
 
 from VUV_gui_classes import VUVData,interp_max
 from get_expt_data import get_data, datasets_org
-from profile_unc_estimation import profile_fitting, MSE_Gaussian_loss #as  prof_fit
+from profile_unc_estimation import profile_fitting #as  prof_fit
 
 
 # =================================
@@ -121,14 +121,58 @@ signal_u_val6 = bayesimp_helper.get_systematic_uncertainty(xeux_val6.signal, plo
 #                           OPTIMIZATION
 #
 # ============================================================
+
 range_1sd = scipy.special.erf(1/np.sqrt(2))
-range_2sd = scipy.special.erf(2/np.sqrt(2)) - range_1sd
-range_3sd = scipy.special.erf(3/np.sqrt(2)) - range_2sd
+range_2sd = scipy.special.erf(2/np.sqrt(2)) - scipy.special.erf(1/np.sqrt(2))
+range_3sd = scipy.special.erf(3/np.sqrt(2)) - scipy.special.erf(2/np.sqrt(2))
+
+def MSE_Gaussian_loss(x, grad, t, y, y_unc, params): 
+    #assert len(grad) == 0, "grad is not empty, but it should"
+    nL = x[0]; print nL
+    res_val = profile_fitting(t, y, err_y=y_unc, optimize=True,
+         method='GPR',kernel='SE',noiseLevel=nL,debug_plots=True, **params)
+
+    frac_within_1sd = res_val.frac_within_1sd
+    frac_within_2sd = res_val.frac_within_2sd
+    frac_within_3sd = res_val.frac_within_3sd
+
+    loss = 0.5 * ((range_1sd - frac_within_1sd)**2 + (range_2sd - frac_within_2sd)**2 + (range_3sd - frac_within_3sd)**2)# + lam * reg
+    print '***************** Validation loss = ', loss, ' ******************'
+    return loss
+
+def MSE_Gaussian_loss_U(x, grad, t, y, y_unc, params): 
+    #assert len(grad) == 0, "grad is not empty, but it should"
+    nL = x[0]; print nL
+    res_val = profile_fitting(t, y, err_y=y_unc, optimize=True,
+         method='GPR',kernel='SE',noiseLevel=nL,debug_plots=True, **params)
+
+    frac_within_1sd = res_val.frac_within_1sd
+    frac_within_2sd = res_val.frac_within_2sd
+    frac_within_3sd = res_val.frac_within_3sd
+
+    loss = 0.5 * ((1.0/range_1sd**(0.5))*(range_1sd - frac_within_1sd)**2 + (1.0/range_2sd**(0.5))*(range_2sd - frac_within_2sd)**2 + (1.0/range_3sd**(0.5))*(range_3sd - frac_within_3sd)**2)# + lam * reg
+    print '***************** Validation loss = ', loss, ' ******************'
+    return loss
+
+def MSE_Gaussian_loss_U2(x, grad, t, y, y_unc, params): 
+    #assert len(grad) == 0, "grad is not empty, but it should"
+    nL = x[0]; print nL
+    res_val = profile_fitting(t, y, err_y=y_unc, optimize=True,
+         method='GPR',kernel='SE',noiseLevel=nL,debug_plots=True, **params)
+
+    frac_within_1sd = res_val.frac_within_1sd
+    frac_within_2sd = res_val.frac_within_2sd
+    frac_within_3sd = res_val.frac_within_3sd
+
+    loss = 0.5 * ((1.0/range_1sd)*(range_1sd - frac_within_1sd)**2 + (1.0/range_2sd)*(range_2sd - frac_within_2sd)**2 + (1.0/range_3sd)*(range_3sd - frac_within_3sd)**2)# + lam * reg
+    print '***************** Validation loss = ', loss, ' ******************'
+    return loss
 
 SE_params={'sigma_mean': 2, 'l_mean': 1e-4, 'sigma_sd': 10, 'l_sd': 0.01}
 
 opt = nlopt.opt(nlopt.LN_SBPLX, 1)  # LN_SBPLX
-opt.set_min_objective(MSE_loss)
+objective = lambda x,grad: MSE_Gaussian_loss_U2(x,grad,t_val_xeus[2],y_val_xeus[2],y_unc_val_xeus[2], SE_params)
+opt.set_min_objective(objective)
 opt.set_lower_bounds([1.0,] * opt.get_dimension())
 opt.set_upper_bounds([5.0,] * opt.get_dimension())
 opt.set_xtol_rel(0.1)
@@ -138,7 +182,7 @@ opt.set_maxtime(1000)
 uopt = opt.optimize(np.asarray([2.0]))
 
 # find statistics for optimized result:
-res_val = profile_fitting(t_val,y_clean_val, err_y=y_unc_val, optimize=True,
+res_val = profile_fitting(t_val_xeus[2],y_val_xeus[2], err_y=y_unc_val_xeus[2], optimize=True,
      method='GPR',kernel='SE',noiseLevel=uopt[0],debug_plots=True, **SE_params)
 frac_within_1sd = res_val.frac_within_1sd
 frac_within_2sd = res_val.frac_within_2sd
