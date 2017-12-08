@@ -295,3 +295,23 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
         res.m_gp=m_gp
 
     return res
+
+
+#====================================================================
+#
+#       Loss function for Gaussian-distributed uncertainties
+#
+#====================================================================
+def MSE_Gaussian_loss(x,grad,params): 
+    #assert len(grad) == 0, "grad is not empty, but it should"
+    nL = x[0]; print nL
+    res_val = profile_fitting(t_val,y_clean_val, err_y=y_unc_val, optimize=True,
+         method='GPR',kernel='SE',noiseLevel=nL,debug_plots=True, **params)
+
+    frac_within_1sd = res_val.frac_within_1sd
+    frac_within_2sd = res_val.frac_within_2sd
+    frac_within_3sd = res_val.frac_within_3sd
+
+    loss = 0.5 * ((range_1sd - frac_within_1sd)**2 + (range_2sd - frac_within_2sd)**2 + (range_3sd - frac_within_3sd)**2)# + lam * reg
+    print '***************** Validation loss = ', loss, ' ******************'
+    return loss
