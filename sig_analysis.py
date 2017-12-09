@@ -36,78 +36,18 @@ from VUV_gui_classes import VUVData,interp_max
 from get_expt_data import get_data, datasets_org
 from profile_unc_estimation import profile_fitting #as  prof_fit
 
+#################### BEGIN #################################
+# Get data:
+xeus_train, xeus_val_sets = get_data('XEUS')
+ne_train, ne_val_sets = get_data('ne')
+Te_train, Te_val_sets = get_data('Te')
 
-# =================================
-# Select shots to analyze:
-shot_train = 1101014019
-shot_val1 = 1101014029
-shot_val2 = 1101014030
-shot_val3 = 1101014011
+# organize data in training and (multiple) validation sets:
+x_train_xeus,y_train_xeus,y_unc_train_xeus,x_val_xeus, y_val_xeus, y_unc_val_xeus = datasets_org(training = xeus_train, validation = xeus_val_sets)
+x_train_ne,y_train_ne,y_unc_train_ne,x_val_ne, y_val_ne, y_unc_val_ne = datasets_org(training = ne_train, validation = ne_val_sets,query ='ne')
+x_train_Te,y_train_Te,y_unc_train_Te,x_val_Te, y_val_Te, y_unc_val_Te = datasets_org(training = Te_train, validation = Te_val_sets,query ='Te')
 
-nTshot_val1 = 1101014030
-nTshot_val2 = 1101015012
-nTshot_val3 = 1101015013
-nTshot_val4 = 1101014007
-nTshot_val5 = 1100903006
-nTshot_val6 = 1100811017
-nTshot_val7 = 1100811018
-nTshot_val8 = 1100812004
-nTshot_val9 = 1100722019
-nTshot_val10 = 1100722020
-# ==================================
-
-# =================== GET  DATA  ====================
-# XEUS data
-xeux_train = get_data(query='xeus', shot = shot_train, t_min= 1.23, t_max = 1.4, inj_idx = 1)
-xeux_val1 = get_data(query='xeus', shot = shot_val1, t_min= 0.99, t_max = 1.08, inj_idx = 1)
-xeux_val2 = get_data(query='xeus', shot = shot_val2, t_min= 0.77, t_max = 0.94, inj_idx = 2)
-xeux_val3 = get_data(query='xeus', shot = shot_val2, t_min= 0.99, t_max = 1.14, inj_idx = 3)
-xeux_val4 = get_data(query='xeus', shot = shot_val2, t_min= 1.19, t_max = 1.34, inj_idx = 4)
-xeux_val5 = get_data(query='xeus', shot = shot_val3, t_min= 0.76, t_max = 0.91, inj_idx = 1)
-xeux_val6 = get_data(query='xeus', shot = shot_val3, t_min= 0.95, t_max = 1.12, inj_idx = 2)
-#xeux_val7 = get_data(query='xeus', shot = shot_val3, t_min= 1.15, t_max = 1.3, inj_idx = 3)
-
-# Organize training and validation data sets:
-xeux_val_sets = [xeux_val1,xeux_val2,xeux_val3,xeux_val4,xeux_val5,xeux_val6]
-t_train_xeus,y_train_xeus,y_unc_train_xeus,t_val_xeus, y_val_xeus, y_unc_val_xeus = datasets_org(training = xeux_train, validation = xeux_val_sets)
-
-# ne data
-ne_train = get_data(query='ne', shot = shot_train, t_min = 1.23, t_max = 1.40)
-ne_val1 = get_data(query='ne', shot = nTshot_val2, t_min = 1.00, t_max = 1.20)
-ne_val2 = get_data(query='ne', shot = nTshot_val4, t_min = 0.80, t_max = 1.00)
-ne_val3 = get_data(query='ne', shot = nTshot_val5, t_min = 1.00, t_max = 1.15)
-ne_val4 = get_data(query='ne', shot = nTshot_val6, t_min = 0.80, t_max = 1.00)
-ne_val5 = get_data(query='ne', shot = nTshot_val7, t_min = 0.90, t_max = 1.10)
-ne_val6 = get_data(query='ne', shot = nTshot_val8, t_min = 0.90, t_max = 1.10)
-ne_val7 = get_data(query='ne', shot = nTshot_val10, t_min = 0.75, t_max = 0.90)
-#ne_val8 = get_data(query='ne', shot = nTshot_val1, t_min = 1.00, t_max = 1.20)  ######
-#ne_val9 = get_data(query='ne', shot = nTshot_val9, t_min = 0.90, t_max = 1.10)
-#ne_val10 = get_data(query='ne', shot = nTshot_val3, t_min = 1.25, t_max = 1.40)
-
-# Organize training and validation data sets:
-ne_val_sets = [ne_val1, ne_val2, ne_val3, ne_val4, ne_val5, ne_val6, ne_val7]#, ne_val8, ne_val9, ne_val9, ne_val10] 
-t_train_ne,y_train_ne,y_unc_train_ne,t_val_ne, y_val_ne, y_unc_val_ne = datasets_org(training = xeux_train, validation = xeux_val_sets)
-
-# Te data
-Te_train = get_data(query='Te', shot = shot_train, t_min = 1.23, t_max = 1.40)
-Te_val1 = get_data(query='ne', shot = nTshot_val2, t_min = 1.00, t_max = 1.20)
-Te_val2 = get_data(query='ne', shot = nTshot_val4, t_min = 0.80, t_max = 1.00)
-Te_val3 = get_data(query='ne', shot = nTshot_val5, t_min = 1.00, t_max = 1.15)
-Te_val4 = get_data(query='ne', shot = nTshot_val6, t_min = 0.80, t_max = 1.00)
-Te_val5 = get_data(query='ne', shot = nTshot_val7, t_min = 0.90, t_max = 1.10)
-Te_val6 = get_data(query='ne', shot = nTshot_val8, t_min = 0.90, t_max = 1.10)
-Te_val7 = get_data(query='ne', shot = nTshot_val10, t_min = 0.75, t_max = 0.90)
-
-# Te_val8 = get_data(query='ne', shot = nTshot_val1, t_min = 1.00, t_max = 1.20)
-# Te_val9 = get_data(query='ne', shot = nTshot_val3, t_min = 1.25, t_max = 1.40)
-# Te_val10 = get_data(query='ne', shot = nTshot_val9, t_min = 0.90, t_max = 1.10)
-
-# Organize training and validation data sets:
-Te_val_sets = [Te_val1, Te_val2, Te_val3, Te_val4, Te_val5, Te_val6, Te_val7]#, Te_val8, Te_val9, Te_val9, Te_val10] 
-t_train_Te,y_train_Te,y_unc_train_Te,t_val_Te, y_val_Te, y_unc_val_Te = datasets_org(training = xeux_train, validation = xeux_val_sets)
-
-# ================================== XEUS  ==============================
-# Benchmark: plot using augmented XEUS uncertainties and Monte Carlo interpolation
+# XEUS benchmark: plot using augmented XEUS uncertainties and Monte Carlo interpolation
 signal_u = bayesimp_helper.get_systematic_uncertainty(xeux_train.signal, plot=True)
 signal_u_val1 = bayesimp_helper.get_systematic_uncertainty(xeux_val1.signal, plot=True)
 signal_u_val2 = bayesimp_helper.get_systematic_uncertainty(xeux_val2.signal, plot=True)
@@ -126,52 +66,40 @@ range_1sd = scipy.special.erf(1/np.sqrt(2))
 range_2sd = scipy.special.erf(2/np.sqrt(2)) - scipy.special.erf(1/np.sqrt(2))
 range_3sd = scipy.special.erf(3/np.sqrt(2)) - scipy.special.erf(2/np.sqrt(2))
 
-def MSE_Gaussian_loss(x, grad, t, y, y_unc, params): 
+def MSE_Gaussian_loss(x, grad, x, y, y_unc, params): 
     #assert len(grad) == 0, "grad is not empty, but it should"
     nL = x[0]; print nL
-    res_val = profile_fitting(t, y, err_y=y_unc, optimize=True,
+    res_val = profile_fitting(x, y, err_y=y_unc, optimize=True,
          method='GPR',kernel='SE',noiseLevel=nL,debug_plots=True, **params)
 
     frac_within_1sd = res_val.frac_within_1sd
     frac_within_2sd = res_val.frac_within_2sd
     frac_within_3sd = res_val.frac_within_3sd
 
-    loss = 0.5 * ((range_1sd - frac_within_1sd)**2 + (range_2sd - frac_within_2sd)**2 + (range_3sd - frac_within_3sd)**2)# + lam * reg
+    beta = 0.5
+    loss = 0.5 * ((1.0/range_1sd)**beta*(range_1sd - frac_within_1sd)**2 + (1.0/range_2sd)**beta*(range_2sd - frac_within_2sd)**2 + (1.0/range_3sd)**beta*(range_3sd - frac_within_3sd)**2)# + lam * reg
     print '***************** Validation loss = ', loss, ' ******************'
     return loss
 
-def MSE_Gaussian_loss_U(x, grad, t, y, y_unc, params): 
+def Gaussian_frac_loss(x, grad, x, y, y_unc, params): 
     #assert len(grad) == 0, "grad is not empty, but it should"
     nL = x[0]; print nL
-    res_val = profile_fitting(t, y, err_y=y_unc, optimize=True,
+    res_val = profile_fitting(x, y, err_y=y_unc, optimize=True,
          method='GPR',kernel='SE',noiseLevel=nL,debug_plots=True, **params)
 
     frac_within_1sd = res_val.frac_within_1sd
     frac_within_2sd = res_val.frac_within_2sd
     frac_within_3sd = res_val.frac_within_3sd
 
-    loss = 0.5 * ((1.0/range_1sd**(0.5))*(range_1sd - frac_within_1sd)**2 + (1.0/range_2sd**(0.5))*(range_2sd - frac_within_2sd)**2 + (1.0/range_3sd**(0.5))*(range_3sd - frac_within_3sd)**2)# + lam * reg
+    loss = 0.5 * ((1 - range_1sd/(frac_within_1sd+eps))**2 + (1 - frac_within_2sd/(range_2sd+eps))+ (1 - frac_within_31sd/(range_3sd+eps)))# + lam * reg
     print '***************** Validation loss = ', loss, ' ******************'
     return loss
 
-def MSE_Gaussian_loss_U2(x, grad, t, y, y_unc, params): 
-    #assert len(grad) == 0, "grad is not empty, but it should"
-    nL = x[0]; print nL
-    res_val = profile_fitting(t, y, err_y=y_unc, optimize=True,
-         method='GPR',kernel='SE',noiseLevel=nL,debug_plots=True, **params)
-
-    frac_within_1sd = res_val.frac_within_1sd
-    frac_within_2sd = res_val.frac_within_2sd
-    frac_within_3sd = res_val.frac_within_3sd
-
-    loss = 0.5 * ((1.0/range_1sd)*(range_1sd - frac_within_1sd)**2 + (1.0/range_2sd)*(range_2sd - frac_within_2sd)**2 + (1.0/range_3sd)*(range_3sd - frac_within_3sd)**2)# + lam * reg
-    print '***************** Validation loss = ', loss, ' ******************'
-    return loss
 
 SE_params={'sigma_mean': 2, 'l_mean': 1e-4, 'sigma_sd': 10, 'l_sd': 0.01}
 
 opt = nlopt.opt(nlopt.LN_SBPLX, 1)  # LN_SBPLX
-objective = lambda x,grad: MSE_Gaussian_loss_U2(x,grad,t_val_xeus[2],y_val_xeus[2],y_unc_val_xeus[2], SE_params)
+objective = lambda x,grad: MSE_Gaussian_loss(x,grad,x_train_xeus,y_train_xeus,y_unc_train_xeus, SE_params)
 opt.set_min_objective(objective)
 opt.set_lower_bounds([1.0,] * opt.get_dimension())
 opt.set_upper_bounds([5.0,] * opt.get_dimension())
@@ -182,7 +110,7 @@ opt.set_maxtime(1000)
 uopt = opt.optimize(np.asarray([2.0]))
 
 # find statistics for optimized result:
-res_val = profile_fitting(t_val_xeus[2],y_val_xeus[2], err_y=y_unc_val_xeus[2], optimize=True,
+res_val = profile_fitting(x_val_xeus[2],y_val_xeus[2], err_y=y_unc_val_xeus[2], optimize=True,
      method='GPR',kernel='SE',noiseLevel=uopt[0],debug_plots=True, **SE_params)
 frac_within_1sd = res_val.frac_within_1sd
 frac_within_2sd = res_val.frac_within_2sd

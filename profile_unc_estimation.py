@@ -201,7 +201,7 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
 
         # Create additional noise to optimize over (the first argument is n_dims)
         nk = gptools.DiagonalNoiseKernel(1, n=0, initial_noise=np.mean(err_y)*noiseLevel,
-                        fixed_noise=True, noise_bound=(np.mean(err_y)*noiseLevel*(4.0/5.0),np.mean(err_y)*noiseLevel*(6.0/5.0)))    #(np.min(err_y), np.max(err_y)*noiseLevel))#, enforce_bounds=True)
+                        fixed_noise=True)#, noise_bound=(np.mean(err_y)*noiseLevel*(4.0/5.0),np.mean(err_y)*noiseLevel*(6.0/5.0)))    #(np.min(err_y), np.max(err_y)*noiseLevel))#, enforce_bounds=True)
         print "noise_bound= [", np.min(err_y), ",",np.max(err_y)*noiseLevel,"]"
 
         gp = gptools.GaussianProcess(k, X=x, y=y, err_y=err_y, noise_k=nk)
