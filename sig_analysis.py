@@ -91,22 +91,22 @@ def MSE_Gaussian_loss(x, grad, xx, y, y_unc, params):
     frac_within_2sd = res_val.frac_within_2sd
     frac_within_3sd = res_val.frac_within_3sd
 
-    beta = 1.0
+    beta = 1.0 # try 2
     loss = 0.5 * (range_1sd**(-beta)*(range_1sd - frac_within_1sd)**2 + range_2sd**(-beta)*(range_2sd - frac_within_2sd)**2 + range_3sd**(-beta)*(range_3sd - frac_within_3sd)**2)# + lam * reg
     #print '***************** Validation loss = ', loss, ' ******************'
     return loss
 
-# # Obtain optimized estimate of \psi by averaging over optimized results on validation set:
-# opt = nlopt.opt(nlopt.LN_SBPLX, 1)  # LN_SBPLX
-# opt.set_lower_bounds([1.0,] * opt.get_dimension())
-# opt.set_upper_bounds([5.0,] * opt.get_dimension())
-# opt.set_xtol_abs(0.1)
-# objective = lambda x,grad: MSE_Gaussian_loss(x,grad,x_val_xeus[i_val],y_val_xeus[i_val],y_unc_val_xeus[i_val], SE_params)
-# opt.set_min_objective(objective)
+# Obtain optimized estimate of \psi by averaging over optimized results on validation set:
+i_val=1
+opt = nlopt.opt(nlopt.LN_SBPLX, 1)  # LN_SBPLX
+opt.set_lower_bounds([1.0,] * opt.get_dimension())
+opt.set_upper_bounds([5.0,] * opt.get_dimension())
+opt.set_xtol_abs(0.1)
+objective = lambda x,grad: MSE_Gaussian_loss(x,grad,x_val_xeus[i_val],y_val_xeus[i_val],y_unc_val_xeus[i_val], SE_params)
+opt.set_min_objective(objective)
 
-# # Launch optimization
-# uopt = opt.optimize(np.asarray([2.0]))
-
+# Launch optimization
+uopt = opt.optimize(np.asarray([2.0]))
 
 psi_val = np.zeros(len(x_val_xeus))
 for i_val in range(len(x_val_xeus)):
@@ -120,12 +120,12 @@ for i_val in range(len(x_val_xeus)):
     # Launch optimization
     # uopt[:] = opt.optimize(np.asarray([2.0]))
     #opt.get_numevals()
-    psi_val[i_val] = opt.optimize(np.asarray([2.0]))[0]
+    psi_val[i_val] = opt.optimize(np.asarray([3.0]))[0]
     print ' -----> Completed validation set %d'%(i_val)
 
 # find statistics for optimized result:
 res_val = profile_fitting(x_train_xeus,y_train_xeus, err_y=y_unc_train_xeus, optimize=True,
-     method='GPR',kernel='SE',noiseLevel=uopt[0],debug_plots=True, **SE_params)
+     method='GPR',kernel='SE',noiseLevel=np.mean(psi_val),debug_plots=True, **SE_params)
 frac_within_1sd = res_val.frac_within_1sd
 frac_within_2sd = res_val.frac_within_2sd
 frac_within_3sd = res_val.frac_within_3sd

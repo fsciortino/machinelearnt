@@ -5,12 +5,16 @@ from scipy.interpolate import UnivariateSpline
 import matplotlib.pyplot as plt
 
 # SE_params={'sigma_mean': 2, 'l_mean': 1e-4, 'sigma_sd': 10, 'l_sd': 0.01}
+# gibbs_params2={'sigma_min':0.0,'sigma_max':1.0,'l1_mean':0.1,'l2_mean':0.005,'lw_mean':0.02,'x0_mean':0.02,
+#                'l1_sd':0.005,'l2_sd':0.005,'lw_sd':0.3,'x0_sd':0.03}
 
-m=1e-4 #1.0
-s=0.01 #1e-3
+m=0.005 #1.0
+s=0.005#1e-3
 dist=gptools.GammaJointPriorAlt(m,s)
 
 print 'Standard Gamma Joint Prior parameters: ', dist.a,dist.b
+
+dist = gptools.GammaJointPrior(400,4e3)
 N=1000000
 n=N/100
 samples=scipy.stats.gamma.rvs(dist.a,loc=0,scale=1.0/dist.b,size=N)

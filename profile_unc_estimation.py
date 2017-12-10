@@ -160,27 +160,41 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
             # Defaults:
             if not hasattr(hparams,'sigma_mean'): hparams.sigma_mean = 2.0
             if not hasattr(hparams,'l_mean'): hparams.l_mean = 0.005
+
             if not hasattr(hparams,'sigma_sd'): hparams.sigma_sd = 10.0
             if not hasattr(hparams,'l_sd'): hparams.l_sd = 0.1
 
             hprior=( 
-                gptools.GammaJointPriorAlt([2.0,0.05],[5.0,0.25])
+                gptools.GammaJointPriorAlt([hparams.sigma_mean,hparams.l_mean],[hparams.sigma_sd,hparams.l_sd])
                 ) 
             k = gptools.Matern52Kernel( # this has 2 hyperparameters in 1D
                 #= ===== ===========================================
                 #0 sigma Prefactor to the kernel  
                 #2 l1    Length scale for first dimension
-                #3 l2    Length scale for second dimension
-                #4 ...   More length scales for more dimensions
+                #3 ...   More length scales for more dimensions
                 #= ===== =======================================
                 hyperprior=hprior,
                 initial_params=[0.5, 0.5],
                 fixed_params=[False]*2
             ) 
         elif kernel == 'RQ': # rational quadratic
-            hprior=(   
-                gptools.GammaJointPriorAlt([0.3,0.5,0.0],[1.3,1.25,1.3])
-                )   
+            if num_dim == 1: assert len(kwargs) == 3
+            hparams = hyperparams(**kwargs); 
+
+            # Defaults:
+            if not hasattr(hparams,'sigma_mean'): hparams.sigma_mean = 2.0
+            if not hasattr(hparams,'alpha_mean'): hparams.alpha_mean = 0.005
+            if not hasattr(hparams,'l1_mean'): hparams.l1_mean = 0.005
+
+            if not hasattr(hparams,'sigma_sd'): hparams.sigma_sd = 10.0
+            if not hasattr(hparams,'alpha_sd'): hparams.alpha_sd = 0.1
+            if not hasattr(hparams,'l1_sd'): hparams.l1_sd = 0.1
+
+            hprior=( 
+                gptools.GammaJointPriorAlt([hparams.sigma_mean, hparams.alpha_mean, hparams.l1_mean],
+                    [hparams.sigma_sd, hparams.alpha_sd, hparams.l1_sd])
+                ) 
+
             gptools.RationalQuadraticKernel(
                 #= ===== ===========================================
                 #0 sigma Prefactor to the kernel  
@@ -202,7 +216,7 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
         # Create additional noise to optimize over (the first argument is n_dims)
         nk = gptools.DiagonalNoiseKernel(1, n=0, initial_noise=np.mean(err_y)*noiseLevel,
                         fixed_noise=True)#, noise_bound=(np.mean(err_y)*noiseLevel*(4.0/5.0),np.mean(err_y)*noiseLevel*(6.0/5.0)))    #(np.min(err_y), np.max(err_y)*noiseLevel))#, enforce_bounds=True)
-        print "noise_bound= [", np.min(err_y), ",",np.max(err_y)*noiseLevel,"]"
+        #print "noise_bound= [", np.min(err_y), ",",np.max(err_y)*noiseLevel,"]"
 
         gp = gptools.GaussianProcess(k, X=x, y=y, err_y=err_y, noise_k=nk)
 
