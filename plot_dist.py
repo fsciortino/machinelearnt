@@ -4,15 +4,19 @@ import scipy
 from scipy.interpolate import UnivariateSpline
 import matplotlib.pyplot as plt
 
-m=0.5 #1.0
-s=0.25 #1e-3
+# SE_params={'sigma_mean': 2, 'l_mean': 1e-4, 'sigma_sd': 10, 'l_sd': 0.01}
+
+m=1e-4 #1.0
+s=0.01 #1e-3
 dist=gptools.GammaJointPriorAlt(m,s)
+
+print 'Standard Gamma Joint Prior parameters: ', dist.a,dist.b
 N=1000000
 n=N/100
 samples=scipy.stats.gamma.rvs(dist.a,loc=0,scale=1.0/dist.b,size=N)
 p,x=np.histogram(samples,bins=n)
 
-# convert bin edged to centers
+# convert bin edges to centers
 x=x[:-1]+(x[1]-x[0])/2
 
 fig,ax=plt.subplots(4,2,figsize=(10,12))
