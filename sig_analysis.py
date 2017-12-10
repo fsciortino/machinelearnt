@@ -48,66 +48,73 @@ x_train_ne,y_train_ne,y_unc_train_ne,x_val_ne, y_val_ne, y_unc_val_ne = datasets
 x_train_Te,y_train_Te,y_unc_train_Te,x_val_Te, y_val_Te, y_unc_val_Te = datasets_org(training = Te_train, validation = Te_val_sets,query ='Te')
 
 # XEUS benchmark: plot using augmented XEUS uncertainties and Monte Carlo interpolation
-signal_u = bayesimp_helper.get_systematic_uncertainty(xeux_train.signal, plot=True)
-signal_u_val1 = bayesimp_helper.get_systematic_uncertainty(xeux_val1.signal, plot=True)
-signal_u_val2 = bayesimp_helper.get_systematic_uncertainty(xeux_val2.signal, plot=True)
-signal_u_val3 = bayesimp_helper.get_systematic_uncertainty(xeux_val3.signal, plot=True)
-signal_u_val4 = bayesimp_helper.get_systematic_uncertainty(xeux_val4.signal, plot=True)
-signal_u_val5 = bayesimp_helper.get_systematic_uncertainty(xeux_val5.signal, plot=True)
-signal_u_val6 = bayesimp_helper.get_systematic_uncertainty(xeux_val6.signal, plot=True)
+signal_u = bayesimp_helper.get_systematic_uncertainty(xeus_train.signal, plot=True)
+signal_u_val1 = bayesimp_helper.get_systematic_uncertainty(xeus_val_sets[0].signal, plot=True)
+signal_u_val2 = bayesimp_helper.get_systematic_uncertainty(xeus_val_sets[1].signal, plot=True)
+signal_u_val3 = bayesimp_helper.get_systematic_uncertainty(xeus_val_sets[2].signal, plot=True)
+signal_u_val4 = bayesimp_helper.get_systematic_uncertainty(xeus_val_sets[3].signal, plot=True)
+signal_u_val5 = bayesimp_helper.get_systematic_uncertainty(xeus_val_sets[4].signal, plot=True)
+signal_u_val6 = bayesimp_helper.get_systematic_uncertainty(xeus_val_sets[5].signal, plot=True)
 
 # ===========================================================
 #
 #                           OPTIMIZATION
 #
 # ============================================================
+# def Gaussian_frac_loss(x, grad, xx, y, y_unc, params): 
+#     #assert len(grad) == 0, "grad is not empty, but it should"
+#     nL = x[0]; print nL
+#     res_val = profile_fitting(xx, y, err_y=y_unc, optimize=True,
+#          method='GPR',kernel='SE',noiseLevel=nL,debug_plots=True, **params)
+
+#     frac_within_1sd = res_val.frac_within_1sd
+#     frac_within_2sd = res_val.frac_within_2sd
+#     frac_within_3sd = res_val.frac_within_3sd
+
+#     loss = 0.5 * ((1 - range_1sd/(frac_within_1sd+eps))**2 + (1 - frac_within_2sd/(range_2sd+eps))+ (1 - frac_within_31sd/(range_3sd+eps)))# + lam * reg
+#     print '***************** Validation loss = ', loss, ' ******************'
+#     return loss
 
 range_1sd = scipy.special.erf(1/np.sqrt(2))
 range_2sd = scipy.special.erf(2/np.sqrt(2)) - scipy.special.erf(1/np.sqrt(2))
 range_3sd = scipy.special.erf(3/np.sqrt(2)) - scipy.special.erf(2/np.sqrt(2))
 
-def MSE_Gaussian_loss(x, grad, x, y, y_unc, params): 
+SE_params={'sigma_mean': 2, 'l_mean': 1e-4, 'sigma_sd': 10, 'l_sd': 0.01}
+
+def MSE_Gaussian_loss(x, grad, xx, y, y_unc, params): 
     #assert len(grad) == 0, "grad is not empty, but it should"
     nL = x[0]; print nL
-    res_val = profile_fitting(x, y, err_y=y_unc, optimize=True,
-         method='GPR',kernel='SE',noiseLevel=nL,debug_plots=True, **params)
+    res_val = profile_fitting(xx, y, err_y=y_unc, optimize=True,
+         method='GPR',kernel='SE',noiseLevel=nL,debug_plots=False, **params)
 
     frac_within_1sd = res_val.frac_within_1sd
     frac_within_2sd = res_val.frac_within_2sd
     frac_within_3sd = res_val.frac_within_3sd
 
-    beta = 0.5
+    beta = 1.0
     loss = 0.5 * ((1.0/range_1sd)**beta*(range_1sd - frac_within_1sd)**2 + (1.0/range_2sd)**beta*(range_2sd - frac_within_2sd)**2 + (1.0/range_3sd)**beta*(range_3sd - frac_within_3sd)**2)# + lam * reg
     print '***************** Validation loss = ', loss, ' ******************'
     return loss
 
-def Gaussian_frac_loss(x, grad, x, y, y_unc, params): 
-    #assert len(grad) == 0, "grad is not empty, but it should"
-    nL = x[0]; print nL
-    res_val = profile_fitting(x, y, err_y=y_unc, optimize=True,
-         method='GPR',kernel='SE',noiseLevel=nL,debug_plots=True, **params)
-
-    frac_within_1sd = res_val.frac_within_1sd
-    frac_within_2sd = res_val.frac_within_2sd
-    frac_within_3sd = res_val.frac_within_3sd
-
-    loss = 0.5 * ((1 - range_1sd/(frac_within_1sd+eps))**2 + (1 - frac_within_2sd/(range_2sd+eps))+ (1 - frac_within_31sd/(range_3sd+eps)))# + lam * reg
-    print '***************** Validation loss = ', loss, ' ******************'
-    return loss
+# Obtain optimized estimate of \psi by averaging over optimized results on validation set:
 
 
-SE_params={'sigma_mean': 2, 'l_mean': 1e-4, 'sigma_sd': 10, 'l_sd': 0.01}
+psi_val = np.zeros(len(x_val_xeus))
+for i_val in range(len(x_val_xeus)):
+    opt = nlopt.opt(nlopt.LN_SBPLX, 1)  # LN_SBPLX
+    opt.set_lower_bounds([1.0,] * opt.get_dimension())
+    opt.set_upper_bounds([5.0,] * opt.get_dimension())
+    opt.set_xtol_abs(0.1)
+    opt.get_xtol_abs()
+    #opt.set_maxtime(1000)
+    objective = lambda x,grad: MSE_Gaussian_loss(x,grad,x_val_xeus[i_val],y_val_xeus[i_val],y_unc_val_xeus[i_val], SE_params)
+    opt.set_min_objective(objective)
+    
+    # Launch optimization
+    uopt = opt.optimize(np.asarray([2.0]))
+    #opt.get_numevals()
+    psi_val[i_val] = uopt[0] 
 
-opt = nlopt.opt(nlopt.LN_SBPLX, 1)  # LN_SBPLX
-objective = lambda x,grad: MSE_Gaussian_loss(x,grad,x_train_xeus,y_train_xeus,y_unc_train_xeus, SE_params)
-opt.set_min_objective(objective)
-opt.set_lower_bounds([1.0,] * opt.get_dimension())
-opt.set_upper_bounds([5.0,] * opt.get_dimension())
-opt.set_xtol_rel(0.1)
-opt.set_maxtime(1000)
-
-# Launch optimization
-uopt = opt.optimize(np.asarray([2.0]))
 
 # find statistics for optimized result:
 res_val = profile_fitting(x_val_xeus[2],y_val_xeus[2], err_y=y_unc_val_xeus[2], optimize=True,
