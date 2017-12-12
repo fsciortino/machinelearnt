@@ -139,7 +139,7 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
             hprior=(
                 gptools.UniformJointPrior([(hparams.sigma_min,hparams.sigma_max),])*
                 gptools.GammaJointPriorAlt([hparams.l1_mean,hparams.l2_mean,hparams.lw_mean,hparams.x0_mean],
-                    [hparams.l1_sd,hparams.l2_sd,hparams.lw_sd,hparams.x0_sd])
+                                           [hparams.l1_sd,hparams.l2_sd,hparams.lw_sd,hparams.x0_sd])
                 )
 
             k = gptools.GibbsKernel1dTanh(
@@ -165,7 +165,8 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
             if not hasattr(hparams,'l_sd'): hparams.l_sd = 0.1
 
             hprior=( 
-                gptools.GammaJointPriorAlt([hparams.sigma_mean,hparams.l_mean],[hparams.sigma_sd,hparams.l_sd])
+                gptools.GammaJointPriorAlt([hparams.sigma_mean,hparams.l_mean],
+                                           [hparams.sigma_sd,hparams.l_sd])
                 ) 
             k = gptools.Matern52Kernel( # this has 2 hyperparameters in 1D
                 #= ===== ===========================================
@@ -178,7 +179,7 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
                 fixed_params=[False]*2
             ) 
         elif kernel == 'RQ': # rational quadratic
-            if num_dim == 1: assert len(kwargs) == 3
+            if num_dim == 1: assert len(kwargs) == 6
             hparams = hyperparams(**kwargs); 
 
             # Defaults:
@@ -192,10 +193,10 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
 
             hprior=( 
                 gptools.GammaJointPriorAlt([hparams.sigma_mean, hparams.alpha_mean, hparams.l1_mean],
-                    [hparams.sigma_sd, hparams.alpha_sd, hparams.l1_sd])
+                                           [hparams.sigma_sd, hparams.alpha_sd, hparams.l1_sd])
                 ) 
 
-            gptools.RationalQuadraticKernel(
+            k = gptools.RationalQuadraticKernel(
                 #= ===== ===========================================
                 #0 sigma Prefactor to the kernel  
                 #1 alpha Order of kernel
@@ -222,6 +223,7 @@ def profile_fitting(x, y, err_y=None, optimize=True, method='GPR', kernel='SE', 
 
         for i in range(len(y)):
             if y[i]==0:
+                gp.add_data(x[i], 0, n=0, err_y=0.0)
                 gp.add_data(x[i], 0, n=0, err_y=0.0)
                 gp.add_data(x[i], 0, n=0, err_y=0.0)
                 gp.add_data(x[i], 0, n=1, err_y=0.0)

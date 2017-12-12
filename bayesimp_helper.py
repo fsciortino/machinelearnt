@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from spline_MC import spline_MC
 
-def get_systematic_uncertainty(signal, t0=0, plot=False):
+def get_systematic_uncertainty(signal, t0=0, plot=False, use_norm=True):
     ''' Update signal uncertainties based on the scattering that occurs before the 
     expected signal time.  
 
@@ -17,15 +17,21 @@ def get_systematic_uncertainty(signal, t0=0, plot=False):
 
     '''
     t = signal.t
-    y= signal.y
-    std_y = signal.std_y
+    signal_u= type('', (), {})()
+    if use_norm:
+        y= signal.y_norm
+        std_y = signal.std_y_norm
+    else:
+        y= signal.y
+        std_y = signal.std_y
 
     std_y_sys = np.zeros(std_y.shape)
     for chord in range(y.shape[1]):
         std_y_sys[:,chord] = abs(min(y[:,chord][t<t0]))+std_y[:,chord][np.argmin(y[:,chord][t<t0])]
     updated_std_y = np.sqrt(std_y**2 + std_y_sys**2)
 
-    signal_u = signal
+    signal_u.t = t
+    signal_u.y = y
     signal_u.std_y = updated_std_y
     
     if plot:
@@ -41,6 +47,47 @@ def get_systematic_uncertainty(signal, t0=0, plot=False):
         # Monte Carlo interpolation of augmented uncertainties
         xout = np.linspace(min(signal_u.t),max(signal_u.t), 1000)
         spline_MC(signal_u.t,signal_u.y,xout,signal_u.std_y[:,0],1000)
+
+    return signal_u
+
+def plot_benchmark_prof(x, y, y_unc, x0=0, plot=False, use_norm=True):
+    ''' Update signal uncertainties based on the scattering that occurs before the 
+    expected signal time.  
+
+    Add the expected systematic uncertainty in quadrature with the current 
+    diagnostic uncertainties    
+
+    '''
+    signal_u= type('', (), {})()
+    x = np.atleast_2d(x); y = np.atleast_2d(y); y_unc = np.atleast_2d(y_unc)
+
+    if x.shape[1]>1: x = x.T
+    if y.shape[1]>1: y = y.T
+    if y_unc.shape[1]>1: y_unc = y_unc.T
+
+    std_y_sys = np.zeros(y_unc.shape)
+    std_y_sys[:,0] = abs(min(y[:,0][x[:,0]<x0]))+y_unc[:,0][np.argmin(y[:,0][x[:,0]<x0])]
+    updated_y_unc = np.sqrt(y_unc**2 + std_y_sys**2)
+
+    signal_u.x = x
+    signal_u.y = y
+    signal_u.y_unc = updated_y_unc
+    
+    if plot:
+        plt.figure()
+        plt.errorbar(x, y, y_unc, marker='s',mfc='blue',mec='green', ecolor='blue')
+        plt.xlabel('t [s]', fontsize = 14)
+        plt.ylabel('Signal Amplitude [A.U.]', fontsize = 14)
+        plt.figure()
+        plt.errorbar(signal_u.x, signal_u.y, signal_u.y_unc, marker='s',mfc='red',mec='green',ecolor='red')
+        plt.xlabel('t [s]', fontsize = 14)
+        plt.ylabel('Signal Amplitude [A.U.]', fontsize = 14)
+
+        # import pdb
+        # pdb.set_trace()
+        # Monte Carlo interpolation of augmented uncertainties
+        xout = np.linspace(min(signal_u.x),max(signal_u.x), 1000)
+        spline_MC(signal_u.x[:,0],signal_u.y,xout,signal_u.y_unc[:,0],1000)
 
     return signal_u
 
