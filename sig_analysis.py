@@ -141,7 +141,7 @@ for i_val in range(len(x_val_xeus)):
     opt.set_lower_bounds([1.0,] * opt.get_dimension())
     opt.set_upper_bounds([5.0,] * opt.get_dimension())
     opt.set_xtol_abs(0.1)
-    objective = lambda x,grad: MSE_Gaussian_loss(x,grad,x_val_xeus[i_val],y_val_xeus[i_val],y_unc_val_xeus[i_val], SE_params, kernel='gibbs')
+    objective = lambda x,grad: MSE_Gaussian_loss(x,grad,x_val_xeus[i_val],y_val_xeus[i_val],y_unc_val_xeus[i_val], gibbs_params, kernel='gibbs')
     opt.set_min_objective(objective)
     
     # Launch optimization
@@ -241,10 +241,12 @@ for i_val in range(len(x_val_ne)):
     psi_val_ne[i_val] = opt.optimize(np.asarray([2.0]))[0]
     print ' -----> Completed validation set %d'%(i_val)
 
-psi_val_ne = [1.25,1.25,1.1171875,1.25,1.25,1.1328125]
+#psi_val_ne = [1.25,1.25,1.1171875,1.25,1.25,1.1328125]
 # find statistics for optimized result:
 res_test_ne_final = profile_fitting(x_test_ne,y_test_ne, err_y=y_unc_test_ne, optimize=True,
      method='GPR',kernel='gibbs',noiseLevel=np.mean(psi_val_ne),debug_plots=True, **gibbs_params)
+res_test_ne_final = profile_fitting(x_test_ne,y_test_ne, err_y=y_unc_test_ne, optimize=True,
+     method='GPR',kernel='gibbs',noiseLevel=1.0,debug_plots=True, **gibbs_params)
 plt.xlabel(r'$\rho$', fontsize=16)
 plt.ylabel(r'$n_e [m^{-3}]$', fontsize=16)
 print 'gibbs kernel free params for ne: ', res_test_ne_final.free_params
@@ -257,16 +259,17 @@ print 'Fraction of points within 3 sd for ne: {}'.format(res_test_ne_final.frac_
 # ================================== Te  ==============================
 # plot in 3d
 Te_test.plot_data()
+Te_val_sets[3].plot_data()
 
 # plot
 f = plt.figure()
 ax = f.add_subplot(111)
 plt.errorbar(x_test_Te, y_test_Te, y_unc_test_Te,marker='s',mfc='red',mec='green')
 
-gibbs_params={'sigma_min':0.0,'sigma_max':10.0,'l1_mean':1.0,'l2_mean':0.5,'lw_mean':0.01,'x0_mean':1.0,
-                'l1_sd':0.3,'l2_sd':0.25,'lw_sd':0.1,'x0_sd':0.05}
-# res = profile_fitting(x_test_Te, y_test_Te, err_y=y_unc_test_Te, optimize=True,
-#      method='GPR',kernel='gibbs',noiseLevel=2,debug_plots=True, **gibbs_params)
+gibbs_params={'sigma_min':0.0,'sigma_max':10.0,'l1_mean':0.5,'l2_mean':0.5,'lw_mean':0.01,'x0_mean':1.0,
+                'l1_sd':0.02,'l2_sd':0.25,'lw_sd':0.1,'x0_sd':0.05}
+res = profile_fitting(x_test_Te, y_test_Te, err_y=y_unc_test_Te, optimize=True,
+     method='GPR',kernel='gibbs',noiseLevel=1.25,debug_plots=True, **gibbs_params)
 # gibbs_ll = res.ll
 # gibbs_BIC = res.BIC
 # print 'gibbs kernel free params: ', res.free_params
@@ -274,7 +277,7 @@ gibbs_params={'sigma_min':0.0,'sigma_max':10.0,'l1_mean':1.0,'l2_mean':0.5,'lw_m
 # print 'gibbs kernel BIC: ', gibbs_BIC
 
 psi_val_Te = np.zeros(len(x_val_Te))
-for i_val in range(len(x_val_Te)):
+for i_val in range(len(x_val_Te)-3):
     opt = nlopt.opt(nlopt.LN_SBPLX, 1)  # LN_SBPLX
     opt.set_lower_bounds([1.0,] * opt.get_dimension())
     opt.set_upper_bounds([5.0,] * opt.get_dimension())
@@ -283,8 +286,6 @@ for i_val in range(len(x_val_Te)):
     opt.set_min_objective(objective)
     
     # Launch optimization
-    # uopt[:] = opt.optimize(np.asarray([2.0]))
-    #opt.get_numevals()
     psi_val_Te[i_val] = opt.optimize(np.asarray([2.0]))[0]
     print ' -----> Completed validation set %d'%(i_val)
 
@@ -300,7 +301,9 @@ print 'Fraction of points within 1 sd for Te: {}'.format(res_test_Te_final.frac_
 print 'Fraction of points within 2 sd for Te: {}'.format(res_test_Te_final.frac_within_2sd)
 print 'Fraction of points within 3 sd for Te: {}'.format(res_test_Te_final.frac_within_3sd)
 
-left,bottom, width, height = [0.5,0.55,0.3,0.3]
+left,bottom, width, height = [0.55,0.55,0.3,0.3]
 ax2 = plt.gcf().add_axes([left,bottom,width,height])
 gptools.univariate_envelope_plot(x_test_Te[x_test_Te>0.9], 
     res_test_Te_final.m_gp[x_test_Te>0.9], res_test_Te_final.s_gp[x_test_Te>0.9], ax=ax2,color='green')
+ax2.set_xlabel(r'$\rho$', fontsize=14)
+ax2.set_ylabel(r'$T_e$ [keV]', fontsize=14)
